@@ -82,6 +82,24 @@ class InitDbOptionEnum(str, Enum):
     MYSQL = "mysql"
 
 
+# 平台 + 爬取类型 → config 属性名的映射
+# 当 CLI 传入 --urls 时，根据此映射覆盖对应的 config 列表
+_PLATFORM_URL_ATTR: dict[tuple[str, str], str] = {
+    ("dy", "detail"): "DY_SPECIFIED_ID_LIST",
+    ("dy", "creator"): "DY_CREATOR_ID_LIST",
+    ("xhs", "detail"): "XHS_SPECIFIED_NOTE_URL_LIST",
+    ("xhs", "creator"): "XHS_CREATOR_ID_LIST",
+    ("ks", "detail"): "KS_SPECIFIED_ID_LIST",
+    ("ks", "creator"): "KS_CREATOR_ID_LIST",
+    ("bili", "detail"): "BILI_SPECIFIED_ID_LIST",
+    ("bili", "creator"): "BILI_CREATOR_ID_LIST",
+    ("wb", "detail"): "WEIBO_SPECIFIED_ID_LIST",
+    ("wb", "creator"): "WEIBO_CREATOR_ID_LIST",
+    ("tieba", "detail"): "TIEBA_SPECIFIED_ID_LIST",
+    ("zhihu", "detail"): "ZHIHU_SPECIFIED_ID_LIST",
+}
+
+
 def _to_bool(value: bool | str) -> bool:
     if isinstance(value, bool):
         return value
@@ -223,6 +241,14 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
                 rich_help_panel="账号配置",
             ),
         ] = config.COOKIES,
+        urls: Annotated[
+            str,
+            typer.Option(
+                "--urls",
+                help="指定URL列表，多个URL用逗号分隔。根据 --type 自动覆盖对应的配置列表 (detail→SPECIFIED_ID_LIST, creator→CREATOR_ID_LIST)",
+                rich_help_panel="基础配置",
+            ),
+        ] = "",
     ) -> SimpleNamespace:
         """MediaCrawler 命令行入口"""
 
@@ -241,6 +267,23 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
         config.SAVE_DATA_OPTION = save_data_option.value
         config.COOKIES = cookies
 
+        # 如果通过 --urls 指定了URL，覆盖对应平台的 ID 列表
+        if urls:
+            url_list = [u.strip() for u in urls.split(",") if u.strip()]
+            attr_key = (platform.value, crawler_type.value)
+            attr_name = _PLATFORM_URL_ATTR.get(attr_key)
+            if attr_name:
+                setattr(config, attr_name, url_list)
+                typer.secho(
+                    f"✅ 已通过 --urls 设置 {attr_name} = {url_list}",
+                    fg=typer.colors.GREEN,
+                )
+            else:
+                typer.secho(
+                    f"⚠️ 平台 '{platform.value}' + 类型 '{crawler_type.value}' 不支持 --urls 参数",
+                    fg=typer.colors.YELLOW,
+                )
+
         return SimpleNamespace(
             platform=config.PLATFORM,
             lt=config.LOGIN_TYPE,
@@ -252,6 +295,7 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
             save_data_option=config.SAVE_DATA_OPTION,
             init_db=init_db_value,
             cookies=config.COOKIES,
+            urls=urls,
         )
 
     command = typer.main.get_command(app)

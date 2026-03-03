@@ -30,6 +30,7 @@ from base.base_crawler import AbstractApiClient
 from proxy.proxy_mixin import ProxyRefreshMixin
 from tools import utils
 from var import request_keyword_var
+import config
 
 if TYPE_CHECKING:
     from proxy.proxy_ip_pool import ProxyIpPool
@@ -40,7 +41,6 @@ from .help import *
 
 
 class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
-
     def __init__(
         self,
         timeout=60,  # 若开启爬取媒体选项，抖音的短视频需要更久的超时时间
@@ -67,11 +67,12 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
         headers: Optional[Dict] = None,
         request_method="GET",
     ):
-
         if not params:
             return
         headers = headers or self.headers
-        local_storage: Dict = await self.playwright_page.evaluate("() => window.localStorage")  # type: ignore
+        local_storage: Dict = await self.playwright_page.evaluate(
+            "() => window.localStorage"
+        )  # type: ignore
         common_params = {
             "device_platform": "webapp",
             "aid": "6383",
@@ -95,7 +96,7 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
             "platform": "PC",
             "screen_width": "2560",
             "screen_height": "1440",
-            'effective_type': '4g',
+            "effective_type": "4g",
             "round_trip_time": "50",
             "webid": get_web_id(),
             "msToken": local_storage.get("xmst"),
@@ -109,7 +110,13 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
             post_data = params
 
         if "/v1/web/general/search" not in uri:
-            a_bogus = await get_a_bogus(uri, query_string, post_data, headers["User-Agent"], self.playwright_page)
+            a_bogus = await get_a_bogus(
+                uri,
+                query_string,
+                post_data,
+                headers["User-Agent"],
+                self.playwright_page,
+            )
             params["a_bogus"] = a_bogus
 
     async def request(self, method, url, **kwargs):
@@ -120,24 +127,32 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
             response = await client.request(method, url, timeout=self.timeout, **kwargs)
         try:
             if response.text == "" or response.text == "blocked":
-                utils.logger.error(f"request params incrr, response.text: {response.text}")
+                utils.logger.error(
+                    f"request params incrr, response.text: {response.text}"
+                )
                 raise Exception("account blocked")
             return response.json()
         except Exception as e:
             raise DataFetchError(f"{e}, {response.text}")
 
-    async def get(self, uri: str, params: Optional[Dict] = None, headers: Optional[Dict] = None):
+    async def get(
+        self, uri: str, params: Optional[Dict] = None, headers: Optional[Dict] = None
+    ):
         """
         GET请求
         """
         await self.__process_req_params(uri, params, headers)
         headers = headers or self.headers
-        return await self.request(method="GET", url=f"{self._host}{uri}", params=params, headers=headers)
+        return await self.request(
+            method="GET", url=f"{self._host}{uri}", params=params, headers=headers
+        )
 
     async def post(self, uri: str, data: dict, headers: Optional[Dict] = None):
         await self.__process_req_params(uri, data, headers)
         headers = headers or self.headers
-        return await self.request(method="POST", url=f"{self._host}{uri}", data=data, headers=headers)
+        return await self.request(
+            method="POST", url=f"{self._host}{uri}", data=data, headers=headers
+        )
 
     async def pong(self, browser_context: BrowserContext) -> bool:
         local_storage = await self.playwright_page.evaluate("() => window.localStorage")
@@ -172,27 +187,37 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
         :return:
         """
         query_params = {
-            'search_channel': search_channel.value,
-            'enable_history': '1',
-            'keyword': keyword,
-            'search_source': 'tab_search',
-            'query_correct_type': '1',
-            'is_filter_search': '0',
-            'from_group_id': '7378810571505847586',
-            'offset': offset,
-            'count': '15',
-            'need_filter_settings': '1',
-            'list_type': 'multi',
-            'search_id': search_id,
+            "search_channel": search_channel.value,
+            "enable_history": "1",
+            "keyword": keyword,
+            "search_source": "tab_search",
+            "query_correct_type": "1",
+            "is_filter_search": "0",
+            "from_group_id": "7378810571505847586",
+            "offset": offset,
+            "count": "15",
+            "need_filter_settings": "1",
+            "list_type": "multi",
+            "search_id": search_id,
         }
-        if sort_type.value != SearchSortType.GENERAL.value or publish_time.value != PublishTimeType.UNLIMITED.value:
-            query_params["filter_selected"] = json.dumps({"sort_type": str(sort_type.value), "publish_time": str(publish_time.value)})
+        if (
+            sort_type.value != SearchSortType.GENERAL.value
+            or publish_time.value != PublishTimeType.UNLIMITED.value
+        ):
+            query_params["filter_selected"] = json.dumps(
+                {
+                    "sort_type": str(sort_type.value),
+                    "publish_time": str(publish_time.value),
+                }
+            )
             query_params["is_filter_search"] = 1
             query_params["search_source"] = "tab_search"
         referer_url = f"https://www.douyin.com/search/{keyword}?aid=f594bbd9-a0e2-4651-9319-ebe3cb6298c1&type=general"
         headers = copy.copy(self.headers)
-        headers["Referer"] = urllib.parse.quote(referer_url, safe=':/')
-        return await self.get("/aweme/v1/web/general/search/single/", query_params, headers=headers)
+        headers["Referer"] = urllib.parse.quote(referer_url, safe=":/")
+        return await self.get(
+            "/aweme/v1/web/general/search/single/", query_params, headers=headers
+        )
 
     async def get_video_by_id(self, aweme_id: str) -> Any:
         """
@@ -207,33 +232,39 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
         return res.get("aweme_detail", {})
 
     async def get_aweme_comments(self, aweme_id: str, cursor: int = 0):
-        """get note comments
-
-        """
+        """get note comments"""
         uri = "/aweme/v1/web/comment/list/"
         params = {"aweme_id": aweme_id, "cursor": cursor, "count": 20, "item_type": 0}
         keywords = request_keyword_var.get()
-        referer_url = "https://www.douyin.com/search/" + keywords + '?aid=3a3cec5a-9e27-4040-b6aa-ef548c2c1138&publish_time=0&sort_type=0&source=search_history&type=general'
+        referer_url = (
+            "https://www.douyin.com/search/"
+            + keywords
+            + "?aid=3a3cec5a-9e27-4040-b6aa-ef548c2c1138&publish_time=0&sort_type=0&source=search_history&type=general"
+        )
         headers = copy.copy(self.headers)
-        headers["Referer"] = urllib.parse.quote(referer_url, safe=':/')
+        headers["Referer"] = urllib.parse.quote(referer_url, safe=":/")
         return await self.get(uri, params)
 
     async def get_sub_comments(self, aweme_id: str, comment_id: str, cursor: int = 0):
         """
-            获取子评论
+        获取子评论
         """
         uri = "/aweme/v1/web/comment/list/reply/"
         params = {
-            'comment_id': comment_id,
+            "comment_id": comment_id,
             "cursor": cursor,
             "count": 20,
             "item_type": 0,
             "item_id": aweme_id,
         }
         keywords = request_keyword_var.get()
-        referer_url = "https://www.douyin.com/search/" + keywords + '?aid=3a3cec5a-9e27-4040-b6aa-ef548c2c1138&publish_time=0&sort_type=0&source=search_history&type=general'
+        referer_url = (
+            "https://www.douyin.com/search/"
+            + keywords
+            + "?aid=3a3cec5a-9e27-4040-b6aa-ef548c2c1138&publish_time=0&sort_type=0&source=search_history&type=general"
+        )
         headers = copy.copy(self.headers)
-        headers["Referer"] = urllib.parse.quote(referer_url, safe=':/')
+        headers["Referer"] = urllib.parse.quote(referer_url, safe=":/")
         return await self.get(uri, params)
 
     async def get_aweme_all_comments(
@@ -264,7 +295,7 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
             if not comments:
                 continue
             if len(result) + len(comments) > max_count:
-                comments = comments[:max_count - len(result)]
+                comments = comments[: max_count - len(result)]
             result.extend(comments)
             if callback:  # 如果有回调函数，就执行回调函数
                 await callback(aweme_id, comments)
@@ -282,7 +313,9 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
                     sub_comments_cursor = 0
 
                     while sub_comments_has_more:
-                        sub_comments_res = await self.get_sub_comments(aweme_id, comment_id, sub_comments_cursor)
+                        sub_comments_res = await self.get_sub_comments(
+                            aweme_id, comment_id, sub_comments_cursor
+                        )
                         sub_comments_has_more = sub_comments_res.get("has_more", 0)
                         sub_comments_cursor = sub_comments_res.get("cursor", 0)
                         sub_comments = sub_comments_res.get("comments", [])
@@ -304,7 +337,9 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
         }
         return await self.get(uri, params)
 
-    async def get_user_aweme_posts(self, sec_user_id: str, max_cursor: str = "") -> Dict:
+    async def get_user_aweme_posts(
+        self, sec_user_id: str, max_cursor: str = ""
+    ) -> Dict:
         uri = "/aweme/v1/web/aweme/post/"
         params = {
             "sec_user_id": sec_user_id,
@@ -312,12 +347,14 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
             "max_cursor": max_cursor,
             "locate_query": "false",
             "publish_video_strategy_type": 2,
-            'verifyFp': 'verify_ma3hrt8n_q2q2HyYA_uLyO_4N6D_BLvX_E2LgoGmkA1BU',
-            'fp': 'verify_ma3hrt8n_q2q2HyYA_uLyO_4N6D_BLvX_E2LgoGmkA1BU'
+            "verifyFp": "verify_ma3hrt8n_q2q2HyYA_uLyO_4N6D_BLvX_E2LgoGmkA1BU",
+            "fp": "verify_ma3hrt8n_q2q2HyYA_uLyO_4N6D_BLvX_E2LgoGmkA1BU",
         }
         return await self.get(uri, params)
 
-    async def get_all_user_aweme_posts(self, sec_user_id: str, callback: Optional[Callable] = None):
+    async def get_all_user_aweme_posts(
+        self, sec_user_id: str, callback: Optional[Callable] = None
+    ):
         posts_has_more = 1
         max_cursor = ""
         result = []
@@ -325,25 +362,51 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
             aweme_post_res = await self.get_user_aweme_posts(sec_user_id, max_cursor)
             posts_has_more = aweme_post_res.get("has_more", 0)
             max_cursor = aweme_post_res.get("max_cursor")
-            aweme_list = aweme_post_res.get("aweme_list") if aweme_post_res.get("aweme_list") else []
-            utils.logger.info(f"[DouYinClient.get_all_user_aweme_posts] get sec_user_id:{sec_user_id} video len : {len(aweme_list)}")
+            aweme_list = (
+                aweme_post_res.get("aweme_list")
+                if aweme_post_res.get("aweme_list")
+                else []
+            )
+            utils.logger.info(
+                f"[DouYinClient.get_all_user_aweme_posts] get sec_user_id:{sec_user_id} video len : {len(aweme_list)}"
+            )
+
+            if config.CRAWLER_MAX_NOTES_COUNT > 0:
+                if len(result) + len(aweme_list) > config.CRAWLER_MAX_NOTES_COUNT:
+                    aweme_list = aweme_list[
+                        : config.CRAWLER_MAX_NOTES_COUNT - len(result)
+                    ]
+                    posts_has_more = 0
+
             if callback:
                 await callback(aweme_list)
             result.extend(aweme_list)
+
+            if (
+                config.CRAWLER_MAX_NOTES_COUNT > 0
+                and len(result) >= config.CRAWLER_MAX_NOTES_COUNT
+            ):
+                break
         return result
 
     async def get_aweme_media(self, url: str) -> Union[bytes, None]:
         async with httpx.AsyncClient(proxy=self.proxy) as client:
             try:
-                response = await client.request("GET", url, timeout=self.timeout, follow_redirects=True)
+                response = await client.request(
+                    "GET", url, timeout=self.timeout, follow_redirects=True
+                )
                 response.raise_for_status()
                 if not response.reason_phrase == "OK":
-                    utils.logger.error(f"[DouYinClient.get_aweme_media] request {url} err, res:{response.text}")
+                    utils.logger.error(
+                        f"[DouYinClient.get_aweme_media] request {url} err, res:{response.text}"
+                    )
                     return None
                 else:
                     return response.content
             except httpx.HTTPError as exc:  # some wrong when call httpx.request method, such as connection error, client error, server error or response status code is not 2xx
-                utils.logger.error(f"[DouYinClient.get_aweme_media] {exc.__class__.__name__} for {exc.request.url} - {exc}")  # 保留原始异常类型名称，以便开发者调试
+                utils.logger.error(
+                    f"[DouYinClient.get_aweme_media] {exc.__class__.__name__} for {exc.request.url} - {exc}"
+                )  # 保留原始异常类型名称，以便开发者调试
                 return None
 
     async def resolve_short_url(self, short_url: str) -> str:
@@ -354,19 +417,29 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
         Returns:
             重定向后的完整URL
         """
-        async with httpx.AsyncClient(proxy=self.proxy, follow_redirects=False) as client:
+        async with httpx.AsyncClient(
+            proxy=self.proxy, follow_redirects=False
+        ) as client:
             try:
-                utils.logger.info(f"[DouYinClient.resolve_short_url] Resolving short URL: {short_url}")
+                utils.logger.info(
+                    f"[DouYinClient.resolve_short_url] Resolving short URL: {short_url}"
+                )
                 response = await client.get(short_url, timeout=10)
 
                 # 短链接通常返回302重定向
                 if response.status_code in [301, 302, 303, 307, 308]:
                     redirect_url = response.headers.get("Location", "")
-                    utils.logger.info(f"[DouYinClient.resolve_short_url] Resolved to: {redirect_url}")
+                    utils.logger.info(
+                        f"[DouYinClient.resolve_short_url] Resolved to: {redirect_url}"
+                    )
                     return redirect_url
                 else:
-                    utils.logger.warning(f"[DouYinClient.resolve_short_url] Unexpected status code: {response.status_code}")
+                    utils.logger.warning(
+                        f"[DouYinClient.resolve_short_url] Unexpected status code: {response.status_code}"
+                    )
                     return ""
             except Exception as e:
-                utils.logger.error(f"[DouYinClient.resolve_short_url] Failed to resolve short URL: {e}")
+                utils.logger.error(
+                    f"[DouYinClient.resolve_short_url] Failed to resolve short URL: {e}"
+                )
                 return ""

@@ -28,7 +28,5 @@ ZHIHU_CREATOR_URL_LIST = [
 
 # 指定知乎ID列表
 ZHIHU_SPECIFIED_ID_LIST = [
-    "https://www.zhihu.com/question/826896610/answer/4885821440",  # 回答
-    "https://zhuanlan.zhihu.com/p/673461588",  # 文章
-    "https://www.zhihu.com/zvideo/1539542068422144000",  # 视频
+    "https://www.zhihu.com/question/463876096/answer/3632161098",
 ]

@@ -55,7 +55,7 @@ BILI_SEARCH_MODE = "normal"
 BILI_QN = 80
 
 # 是否爬取用户信息
-CREATOR_MODE = True
+CREATOR_MODE = False
 
 # 开始爬取用户信息页码
 START_CONTACTS_PAGE = 1
