@@ -398,6 +398,8 @@ class DouYinCrawler(AbstractCrawler):
         # TODO: 抖音并没采用音视频分离的策略，故音频可从原视频中分离，暂不提取
         if note_download_url:
             await self.get_aweme_images(aweme_item)
+            if video_download_url:
+                await self.get_aweme_video(aweme_item)
         else:
             await self.get_aweme_video(aweme_item)
 
@@ -411,22 +413,34 @@ class DouYinCrawler(AbstractCrawler):
         if not config.ENABLE_GET_MEIDAS:
             return
         aweme_id = aweme_item.get("aweme_id")
-        # 笔记 urls 列表，若为短视频类型则返回为空列表
-        note_download_url: List[str] = douyin_store._extract_note_image_list(aweme_item)
-
-        if not note_download_url:
+        images: List[Dict] = aweme_item.get("images", [])
+        if not images:
             return
+            
         picNum = 0
-        for url in note_download_url:
-            if not url:
+        for image in images:
+            image_url_list = image.get("url_list", [])
+            if not image_url_list:
                 continue
+            url = image_url_list[-1]
             content = await self.dy_client.get_aweme_media(url)
             await asyncio.sleep(random.random())
-            if content is None:
-                continue
-            extension_file_name = f"{picNum:>03d}.jpeg"
+            if content is not None:
+                extension_file_name = f"{picNum:>03d}.jpeg"
+                await douyin_store.update_dy_aweme_image(aweme_id, content, extension_file_name)
+            
+            # Check for live photo video
+            if image.get("live_photo_type") == 1 and "video" in image:
+                video_url_list = image.get("video", {}).get("play_addr", {}).get("url_list", [])
+                if video_url_list:
+                    live_video_url = video_url_list[-1]
+                    video_content = await self.dy_client.get_aweme_media(live_video_url)
+                    await asyncio.sleep(random.random())
+                    if video_content is not None:
+                        video_extension_file_name = f"{picNum:>03d}_live.mp4"
+                        await douyin_store.update_dy_aweme_image(aweme_id, video_content, video_extension_file_name)
+
             picNum += 1
-            await douyin_store.update_dy_aweme_image(aweme_id, content, extension_file_name)
 
     async def get_aweme_video(self, aweme_item: Dict):
         """

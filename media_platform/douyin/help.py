@@ -128,8 +128,8 @@ def parse_video_info_from_url(url: str) -> VideoUrlInfo:
     if modal_id:
         return VideoUrlInfo(aweme_id=modal_id, url_type="modal")
 
-    # 从标准视频URL中提取ID: /video/数字
-    video_pattern = r'/video/(\d+)'
+    # 从标准视频URL中提取ID: /video/数字 或 /share/slides/数字
+    video_pattern = r'/(?:video|note|share/video|share/slides)/(\d+)'
     match = re.search(video_pattern, url)
     if match:
         aweme_id = match.group(1)
