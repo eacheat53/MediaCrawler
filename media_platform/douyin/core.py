@@ -393,14 +393,11 @@ class DouYinCrawler(AbstractCrawler):
             return
         # 笔记 urls 列表，若为短视频类型则返回为空列表
         note_download_url: List[str] = douyin_store._extract_note_image_list(aweme_item)
-        # 视频 url，永远存在，但为短视频类型时的文件其实是音频文件
-        video_download_url: str = douyin_store._extract_video_download_url(aweme_item)
-        # TODO: 抖音并没采用音视频分离的策略，故音频可从原视频中分离，暂不提取
         if note_download_url:
+            # 图文帖子：只下载图片（含live photo动图视频），不下载video URL（那只是背景音乐）
             await self.get_aweme_images(aweme_item)
-            if video_download_url:
-                await self.get_aweme_video(aweme_item)
         else:
+            # 短视频类型：下载视频
             await self.get_aweme_video(aweme_item)
 
     async def get_aweme_images(self, aweme_item: Dict):
@@ -429,8 +426,10 @@ class DouYinCrawler(AbstractCrawler):
                 extension_file_name = f"{picNum:>03d}.jpeg"
                 await douyin_store.update_dy_aweme_image(aweme_id, content, extension_file_name)
             
+
             # Check for live photo video
-            if image.get("live_photo_type") == 1 and "video" in image:
+            # Relaxed condition: some API responses omit live_photo_type but still have video data
+            if "video" in image:
                 video_url_list = image.get("video", {}).get("play_addr", {}).get("url_list", [])
                 if video_url_list:
                     live_video_url = video_url_list[-1]
