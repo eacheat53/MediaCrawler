@@ -57,8 +57,16 @@ uv run main.py --platform dy --type detail --urls "7607137357246244581"
 爬取指定创作者发布的所有作品。URL 来源：`--urls` 参数 或 配置文件中的 `*_CREATOR_ID_LIST`。
 
 ```bash
-# 爬取某个抖音创作者的所有作品
-uv run main.py --platform dy --type creator --urls "https://www.douyin.com/user/MS4wLjABAAAAxxx"
+# 爬取某个 Bilibili 创作者的所有作品
+uv run main.py --platform bilibili --type creator --urls "https://space.bilibili.com/3706950439144136"
+
+# 抖音创作者主页热度排序下载（例如：按点赞数下载前 5 个作品）
+# 1. 首先在 config/dy_config.py 中修改以下配置：
+#    DY_CREATOR_DOWNLOAD_SORT_BY_PLAY_COUNT = True
+#    DY_CREATOR_DOWNLOAD_SORT_FIELD = "digg_count"   # 支持: 'digg_count' (点赞数), 'comment_count' (评论数), 'share_count' (分享数), 'collect_count' (收藏数)
+#    DY_CREATOR_DOWNLOAD_TOP_N = 5
+# 2. 运行爬虫：
+uv run main.py --platform dy --type creator --urls "https://www.douyin.com/user/MS4wLjABAAAAc8ys-j0GmPG7aKrFDde43dcPNc1ag1i69-kUlcvAm6fovmxaO1C_0GX6KEoAhNt4"
 ```
 
 ### 3. `search` — 关键词搜索
