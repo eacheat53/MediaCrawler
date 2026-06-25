@@ -435,6 +435,7 @@ class DouYinCrawler(AbstractCrawler):
         if not config.ENABLE_GET_MEIDAS:
             return
         aweme_id = aweme_item.get("aweme_id")
+        title = aweme_item.get("desc", "")
         images: List[Dict] = aweme_item.get("images", [])
         if not images:
             return
@@ -449,7 +450,7 @@ class DouYinCrawler(AbstractCrawler):
             await asyncio.sleep(random.random())
             if content is not None:
                 extension_file_name = f"{picNum:>03d}.jpeg"
-                await douyin_store.update_dy_aweme_image(aweme_id, content, extension_file_name)
+                await douyin_store.update_dy_aweme_image(aweme_id, content, extension_file_name, title=title)
             
 
             # Check for live photo video
@@ -462,7 +463,7 @@ class DouYinCrawler(AbstractCrawler):
                     await asyncio.sleep(random.random())
                     if video_content is not None:
                         video_extension_file_name = f"{picNum:>03d}_live.mp4"
-                        await douyin_store.update_dy_aweme_image(aweme_id, video_content, video_extension_file_name)
+                        await douyin_store.update_dy_aweme_image(aweme_id, video_content, video_extension_file_name, title=title)
 
             picNum += 1
 
@@ -476,6 +477,7 @@ class DouYinCrawler(AbstractCrawler):
         if not config.ENABLE_GET_MEIDAS:
             return
         aweme_id = aweme_item.get("aweme_id")
+        title = aweme_item.get("desc", "")
 
         # 视频 url，永远存在，但为短视频类型时的文件其实是音频文件
         video_download_url: str = douyin_store._extract_video_download_url(aweme_item)
@@ -487,4 +489,4 @@ class DouYinCrawler(AbstractCrawler):
         if content is None:
             return
         extension_file_name = f"video.mp4"
-        await douyin_store.update_dy_aweme_video(aweme_id, content, extension_file_name)
+        await douyin_store.update_dy_aweme_video(aweme_id, content, extension_file_name, title=title)

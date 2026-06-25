@@ -39,35 +39,36 @@ class DouYinImage(AbstractStoreImage):
         Returns:
 
         """
-        await self.save_image(image_content_item.get("aweme_id"), image_content_item.get("pic_content"), image_content_item.get("extension_file_name"))
+        folder_name = image_content_item.get("folder_name") or image_content_item.get("aweme_id")
+        await self.save_image(folder_name, image_content_item.get("pic_content"), image_content_item.get("extension_file_name"))
 
-    def make_save_file_name(self, aweme_id: str, extension_file_name: str) -> str:
+    def make_save_file_name(self, folder_name: str, extension_file_name: str) -> str:
         """
         make save file name by store type
 
         Args:
-            aweme_id: aweme id
+            folder_name: folder name
             extension_file_name: image filename with extension
 
         Returns:
 
         """
-        return f"{self.image_store_path}/{aweme_id}/{extension_file_name}"
+        return f"{self.image_store_path}/{folder_name}/{extension_file_name}"
 
-    async def save_image(self, aweme_id: str, pic_content: str, extension_file_name):
+    async def save_image(self, folder_name: str, pic_content: str, extension_file_name):
         """
         save image to local
 
         Args:
-            aweme_id: aweme id
+            folder_name: folder name
             pic_content: image content
             extension_file_name: image filename with extension
 
         Returns:
 
         """
-        pathlib.Path(self.image_store_path + "/" + aweme_id).mkdir(parents=True, exist_ok=True)
-        save_file_name = self.make_save_file_name(aweme_id, extension_file_name)
+        pathlib.Path(self.image_store_path + "/" + folder_name).mkdir(parents=True, exist_ok=True)
+        save_file_name = self.make_save_file_name(folder_name, extension_file_name)
         async with aiofiles.open(save_file_name, 'wb') as f:
             await f.write(pic_content)
             utils.logger.info(f"[DouYinImageStoreImplement.save_image] save image {save_file_name} success ...")
@@ -86,35 +87,36 @@ class DouYinVideo(AbstractStoreVideo):
         Returns:
 
         """
-        await self.save_video(video_content_item.get("aweme_id"), video_content_item.get("video_content"), video_content_item.get("extension_file_name"))
+        folder_name = video_content_item.get("folder_name") or video_content_item.get("aweme_id")
+        await self.save_video(folder_name, video_content_item.get("video_content"), video_content_item.get("extension_file_name"))
 
-    def make_save_file_name(self, aweme_id: str, extension_file_name: str) -> str:
+    def make_save_file_name(self, folder_name: str, extension_file_name: str) -> str:
         """
         make save file name by store type
 
         Args:
-            aweme_id: aweme id
+            folder_name: folder name
             extension_file_name: video filename with extension
 
         Returns:
 
         """
-        return f"{self.video_store_path}/{aweme_id}/{extension_file_name}"
+        return f"{self.video_store_path}/{folder_name}/{extension_file_name}"
 
-    async def save_video(self, aweme_id: str, video_content: str, extension_file_name):
+    async def save_video(self, folder_name: str, video_content: str, extension_file_name):
         """
         save video to local
 
         Args:
-            aweme_id: aweme id
+            folder_name: folder name
             video_content: video content
             extension_file_name: video filename with extension
 
         Returns:
 
         """
-        pathlib.Path(self.video_store_path + "/" + aweme_id).mkdir(parents=True, exist_ok=True)
-        save_file_name = self.make_save_file_name(aweme_id, extension_file_name)
+        pathlib.Path(self.video_store_path + "/" + folder_name).mkdir(parents=True, exist_ok=True)
+        save_file_name = self.make_save_file_name(folder_name, extension_file_name)
         async with aiofiles.open(save_file_name, 'wb') as f:
             await f.write(video_content)
             utils.logger.info(f"[DouYinVideoStoreImplement.save_video] save video {save_file_name} success ...")

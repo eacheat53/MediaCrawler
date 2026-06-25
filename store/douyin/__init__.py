@@ -247,31 +247,37 @@ async def save_creator(user_id: str, creator: Dict):
     await DouyinStoreFactory.create_store().store_creator(local_db_item)
 
 
-async def update_dy_aweme_image(aweme_id, pic_content, extension_file_name):
+async def update_dy_aweme_image(aweme_id, pic_content, extension_file_name, title=""):
     """
     更新抖音笔记图片
     Args:
         aweme_id:
         pic_content:
         extension_file_name:
+        title:
 
     Returns:
 
     """
+    import re
+    sanitized_title = re.sub(r'[\\/:*?"<>|\r\n\t]', '_', title).strip()[:50] if title else ""
+    folder_name = f"{sanitized_title}_{aweme_id}" if sanitized_title else aweme_id
+    await DouYinImage().store_image({"aweme_id": aweme_id, "folder_name": folder_name, "pic_content": pic_content, "extension_file_name": extension_file_name})
 
-    await DouYinImage().store_image({"aweme_id": aweme_id, "pic_content": pic_content, "extension_file_name": extension_file_name})
 
-
-async def update_dy_aweme_video(aweme_id, video_content, extension_file_name):
+async def update_dy_aweme_video(aweme_id, video_content, extension_file_name, title=""):
     """
     更新抖音短视频
     Args:
         aweme_id:
         video_content:
         extension_file_name:
+        title:
 
     Returns:
 
     """
-
-    await DouYinVideo().store_video({"aweme_id": aweme_id, "video_content": video_content, "extension_file_name": extension_file_name})
+    import re
+    sanitized_title = re.sub(r'[\\/:*?"<>|\r\n\t]', '_', title).strip()[:50] if title else ""
+    folder_name = f"{sanitized_title}_{aweme_id}" if sanitized_title else aweme_id
+    await DouYinVideo().store_video({"aweme_id": aweme_id, "folder_name": folder_name, "video_content": video_content, "extension_file_name": extension_file_name})
