@@ -38,3 +38,9 @@ DY_SPECIFIED_ID_LIST = [
 DY_CREATOR_ID_LIST = [
     # "https://www.douyin.com/user/MS4wLjABAAAAlNQWQKdUXKFl43w7zditxqua0jGSpSfVoKxtVBJOniU",
 ]
+
+# 是否开启按播放量排序下载（仅在CRAWLER_TYPE为creator时生效）
+DY_CREATOR_DOWNLOAD_SORT_BY_PLAY_COUNT = False
+
+# 按播放量排序时，只下载播放量排名前 N 的作品
+DY_CREATOR_DOWNLOAD_TOP_N = 10

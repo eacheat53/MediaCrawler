@@ -273,9 +273,32 @@ class DouYinCrawler(AbstractCrawler):
                 await douyin_store.save_creator(user_id, creator=creator_info)
 
             # Get all video information of the creator
-            all_video_list = await self.dy_client.get_all_user_aweme_posts(sec_user_id=user_id, callback=self.fetch_creator_video_detail)
+            if getattr(config, "DY_CREATOR_DOWNLOAD_SORT_BY_PLAY_COUNT", False):
+                utils.logger.info("[DouYinCrawler.get_creators_and_videos] Fetching all creator videos metadata first...")
+                all_video_list = await self.dy_client.get_all_user_aweme_posts(sec_user_id=user_id, callback=None)
+                
+                # Sort by play count in descending order
+                def get_play_count(item: Dict) -> int:
+                    try:
+                        return int(item.get("statistics", {}).get("play_count", 0))
+                    except (ValueError, TypeError):
+                        return 0
+                
+                sorted_video_list = sorted(all_video_list, key=get_play_count, reverse=True)
+                top_n = getattr(config, "DY_CREATOR_DOWNLOAD_TOP_N", 10)
+                utils.logger.info(f"[DouYinCrawler.get_creators_and_videos] Sorted {len(all_video_list)} videos. Selecting top {top_n} by play count.")
+                
+                top_n_video_list = sorted_video_list[:top_n]
+                for idx, video in enumerate(top_n_video_list):
+                    play_cnt = get_play_count(video)
+                    utils.logger.info(f"  #{idx+1}: aweme_id={video.get('aweme_id')}, play_count={play_cnt}, desc={video.get('desc', '')[:30]}")
+                
+                await self.fetch_creator_video_detail(top_n_video_list)
+                video_ids = [video_item.get("aweme_id") for video_item in top_n_video_list]
+            else:
+                all_video_list = await self.dy_client.get_all_user_aweme_posts(sec_user_id=user_id, callback=self.fetch_creator_video_detail)
+                video_ids = [video_item.get("aweme_id") for video_item in all_video_list]
 
-            video_ids = [video_item.get("aweme_id") for video_item in all_video_list]
             await self.batch_get_note_comments(video_ids)
 
     async def fetch_creator_video_detail(self, video_list: List[Dict]):
