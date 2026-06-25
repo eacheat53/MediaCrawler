@@ -23,7 +23,7 @@ KEYWORDS = "编程副业,编程兼职"  # 关键词搜索配置，以英文逗�
 LOGIN_TYPE = "qrcode"  # qrcode or phone or cookie
 COOKIES = ""
 CRAWLER_TYPE = (
-    "detail"  # 爬取类型
+    "creator"  # 爬取类型
     # search(关键词搜索)
     # detail(帖子详情)根据 DY_SPECIFIED_ID_LIST 中指定的视频/图集 URL 或 ID，获取具体内容并下载
     # creator(创作者主页数据)根据 DY_CREATOR_ID_LIST 中指定的创作者主页 URL，爬取该创作者发布的所有作品

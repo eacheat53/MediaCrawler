@@ -36,11 +36,15 @@ DY_SPECIFIED_ID_LIST = [
 # 1. 完整创作者主页URL: "https://www.douyin.com/user/MS4wLjABAAAATJPY7LAlaa5X-c8uNdWkvz0jUGgpw4eeXIwu_8BhvqE?from_tab_name=main"
 # 2. sec_user_id: "MS4wLjABAAAATJPY7LAlaa5X-c8uNdWkvz0jUGgpw4eeXIwu_8BhvqE"
 DY_CREATOR_ID_LIST = [
-    # "https://www.douyin.com/user/MS4wLjABAAAAlNQWQKdUXKFl43w7zditxqua0jGSpSfVoKxtVBJOniU",
+    "https://www.douyin.com/user/MS4wLjABAAAAc8ys-j0GmPG7aKrFDde43dcPNc1ag1i69-kUlcvAm6fovmxaO1C_0GX6KEoAhNt4?from_tab_name=main&vid=7654559078303920613",
 ]
 
-# 是否开启按播放量排序下载（仅在CRAWLER_TYPE为creator时生效）
-DY_CREATOR_DOWNLOAD_SORT_BY_PLAY_COUNT = False
+# 是否开启按热度指标排序下载（仅在CRAWLER_TYPE为creator时生效）
+DY_CREATOR_DOWNLOAD_SORT_BY_PLAY_COUNT = True
 
-# 按播放量排序时，只下载播放量排名前 N 的作品
-DY_CREATOR_DOWNLOAD_TOP_N = 10
+# 排序指标选项: 'play_count' (播放量), 'digg_count' (点赞数), 'comment_count' (评论数), 'share_count' (分享数), 'collect_count' (收藏数)
+# 注意：抖音网页版公开接口返回的 play_count 字段通常恒为 0，因此推荐使用 'digg_count' (点赞数) 进行热度排序。
+DY_CREATOR_DOWNLOAD_SORT_FIELD = "digg_count"
+
+# 排序后，只下载排名前 N 的作品
+DY_CREATOR_DOWNLOAD_TOP_N = 5

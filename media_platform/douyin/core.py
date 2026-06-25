@@ -277,21 +277,23 @@ class DouYinCrawler(AbstractCrawler):
                 utils.logger.info("[DouYinCrawler.get_creators_and_videos] Fetching all creator videos metadata first...")
                 all_video_list = await self.dy_client.get_all_user_aweme_posts(sec_user_id=user_id, callback=None)
                 
-                # Sort by play count in descending order
-                def get_play_count(item: Dict) -> int:
+                # Sort by hotness field in descending order
+                sort_field = getattr(config, "DY_CREATOR_DOWNLOAD_SORT_FIELD", "digg_count")
+                
+                def get_sort_value(item: Dict) -> int:
                     try:
-                        return int(item.get("statistics", {}).get("play_count", 0))
+                        return int(item.get("statistics", {}).get(sort_field, 0))
                     except (ValueError, TypeError):
                         return 0
                 
-                sorted_video_list = sorted(all_video_list, key=get_play_count, reverse=True)
+                sorted_video_list = sorted(all_video_list, key=get_sort_value, reverse=True)
                 top_n = getattr(config, "DY_CREATOR_DOWNLOAD_TOP_N", 10)
-                utils.logger.info(f"[DouYinCrawler.get_creators_and_videos] Sorted {len(all_video_list)} videos. Selecting top {top_n} by play count.")
+                utils.logger.info(f"[DouYinCrawler.get_creators_and_videos] Sorted {len(all_video_list)} videos by {sort_field}. Selecting top {top_n}.")
                 
                 top_n_video_list = sorted_video_list[:top_n]
                 for idx, video in enumerate(top_n_video_list):
-                    play_cnt = get_play_count(video)
-                    utils.logger.info(f"  #{idx+1}: aweme_id={video.get('aweme_id')}, play_count={play_cnt}, desc={video.get('desc', '')[:30]}")
+                    val = get_sort_value(video)
+                    utils.logger.info(f"  #{idx+1}: aweme_id={video.get('aweme_id')}, {sort_field}={val}, desc={video.get('desc', '')[:30]}")
                 
                 await self.fetch_creator_video_detail(top_n_video_list)
                 video_ids = [video_item.get("aweme_id") for video_item in top_n_video_list]
