@@ -68,13 +68,67 @@ class BilibiliClient(AbstractApiClient, ProxyRefreshMixin):
         # 每次请求前检测代理是否过期
         await self._refresh_proxy_if_expired()
 
-        async with httpx.AsyncClient(proxy=self.proxy) as client:
-            response = await client.request(method, url, timeout=self.timeout, **kwargs)
         try:
+            async with httpx.AsyncClient(proxy=self.proxy) as client:
+                response = await client.request(method, url, timeout=self.timeout, **kwargs)
+            if response.status_code == 412 or "由于触发哔哩哔哩安全风控策略" in response.text:
+                utils.logger.warning(f"[BilibiliClient.request] Got {response.status_code} or WAF block response via httpx, trying browser fetch fallback...")
+                raise DataFetchError(f"Blocked by WAF (status: {response.status_code})")
+            
             data: Dict = response.json()
-        except json.JSONDecodeError:
-            utils.logger.error(f"[BilibiliClient.request] Failed to decode JSON from response. status_code: {response.status_code}, response_text: {response.text}")
-            raise DataFetchError(f"Failed to decode JSON, content: {response.text}")
+        except (httpx.HTTPError, json.JSONDecodeError, DataFetchError) as e:
+            if self.playwright_page and not self.playwright_page.is_closed():
+                utils.logger.info(f"[BilibiliClient.request] Httpx request failed or blocked, calling browser fetch fallback for url: {url}")
+                try:
+                    headers_dict = kwargs.get("headers", {})
+                    headers_dict = {k: v for k, v in headers_dict.items() if k.lower() not in ["host", "content-length"]}
+                    
+                    fetch_options = {
+                        "method": method,
+                        "headers": headers_dict,
+                        "credentials": "include",
+                    }
+                    if method == "POST" and "data" in kwargs:
+                        fetch_options["body"] = kwargs["data"]
+                    
+                    js_code = """
+                    async (args) => {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 15000);
+                        try {
+                            const fetchOptions = { ...args.options, signal: controller.signal };
+                            const res = await fetch(args.url, fetchOptions);
+                            clearTimeout(timeoutId);
+                            const text = await res.text();
+                            try {
+                                return { status: res.status, content: JSON.parse(text) };
+                            } catch (e) {
+                                return { status: res.status, text: text, err: e.message };
+                            }
+                        } catch (err) {
+                            clearTimeout(timeoutId);
+                            if (err.name === 'AbortError') {
+                                return { status: 0, err: 'Request timeout (15s)' };
+                            }
+                            return { status: 0, err: err.message };
+                        }
+                    }
+                    """
+                    result = await self.playwright_page.evaluate(js_code, {"url": url, "options": fetch_options})
+                    
+                    if result.get("status") == 200 and "content" in result:
+                        data = result["content"]
+                        utils.logger.info(f"[BilibiliClient.request] Browser fetch fallback succeeded!")
+                    else:
+                        err_msg = result.get("err") or result.get("text") or "Browser fetch failed"
+                        utils.logger.error(f"[BilibiliClient.request] Browser fetch fallback failed: status {result.get('status')}, error: {err_msg}")
+                        raise DataFetchError(f"Browser fetch failed: {err_msg}")
+                except Exception as ex:
+                    utils.logger.error(f"[BilibiliClient.request] Browser fetch exception: {ex}")
+                    raise DataFetchError(f"All request attempts failed, last error: {ex}")
+            else:
+                raise DataFetchError(f"Request failed and no browser fallback available: {e}")
+
         if data.get("code") != 0:
             raise DataFetchError(data.get("message", "unkonw error"))
         else:
@@ -115,19 +169,21 @@ class BilibiliClient(AbstractApiClient, ProxyRefreshMixin):
         sub_key = sub_url.rsplit('/', 1)[1].split('.')[0]
         return img_key, sub_key
 
-    async def get(self, uri: str, params=None, enable_params_sign: bool = True) -> Dict:
+    async def get(self, uri: str, params=None, enable_params_sign: bool = True, headers: Optional[Dict[str, str]] = None) -> Dict:
         final_uri = uri
         if enable_params_sign:
             params = await self.pre_request_data(params)
         if isinstance(params, dict):
             final_uri = (f"{uri}?"
                          f"{urlencode(params)}")
-        return await self.request(method="GET", url=f"{self._host}{final_uri}", headers=self.headers)
+        req_headers = {**self.headers, **headers} if headers else self.headers
+        return await self.request(method="GET", url=f"{self._host}{final_uri}", headers=req_headers)
 
-    async def post(self, uri: str, data: dict) -> Dict:
+    async def post(self, uri: str, data: dict, headers: Optional[Dict[str, str]] = None) -> Dict:
         data = await self.pre_request_data(data)
         json_str = json.dumps(data, separators=(',', ':'), ensure_ascii=False)
-        return await self.request(method="POST", url=f"{self._host}{uri}", data=json_str, headers=self.headers)
+        req_headers = {**self.headers, **headers} if headers else self.headers
+        return await self.request(method="POST", url=f"{self._host}{uri}", data=json_str, headers=req_headers)
 
     async def pong(self) -> bool:
         """get a note to check if login state is ok"""
@@ -221,20 +277,107 @@ class BilibiliClient(AbstractApiClient, ProxyRefreshMixin):
         return await self.get(uri, params, enable_params_sign=True)
 
     async def get_video_media(self, url: str) -> Union[bytes, None]:
+        import re
         # Follow CDN 302 redirects and treat any 2xx as success (some endpoints return 206)
+        utils.logger.info(f"[BilibiliClient.get_video_media] Fetching video media from CDN url: {url[:100]}...")
+        headers = {
+            "User-Agent": self.headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+            "Referer": "https://www.bilibili.com",
+        }
+        
+        # 1. 尝试获取文件总大小 (通过 Range: bytes=0-0 获取 Content-Range)
+        total_size = 0
         async with httpx.AsyncClient(proxy=self.proxy, follow_redirects=True) as client:
             try:
-                response = await client.request("GET", url, timeout=self.timeout, headers=self.headers)
-                response.raise_for_status()
-                if 200 <= response.status_code < 300:
-                    return response.content
-                utils.logger.error(
-                    f"[BilibiliClient.get_video_media] Unexpected status {response.status_code} for {url}"
-                )
-                return None
-            except httpx.HTTPError as exc:  # some wrong when call httpx.request method, such as connection error, client error, server error or response status code is not 2xx
-                utils.logger.error(f"[BilibiliClient.get_video_media] {exc.__class__.__name__} for {exc.request.url} - {exc}")  # 保留原始异常类型名称，以便开发者调试
-                return None
+                test_headers = headers.copy()
+                test_headers["Range"] = "bytes=0-0"
+                response = await client.get(url, timeout=self.timeout, headers=test_headers)
+                if response.status_code == 206:
+                    content_range = response.headers.get("Content-Range", "")
+                    match = re.search(r"bytes \d+-\d+/(\d+)", content_range)
+                    if match:
+                        total_size = int(match.group(1))
+                        utils.logger.info(f"[BilibiliClient.get_video_media] Detected total size via Range: {total_size} bytes")
+            except Exception as e:
+                utils.logger.warning(f"[BilibiliClient.get_video_media] Failed to detect total size via Range bytes=0-0: {e}")
+
+        # 2. 如果成功获取到 total_size，则进行 Range 分片下载 (以 2MB 为一个分片)
+        if total_size > 0:
+            chunk_size = 2 * 1024 * 1024  # 2MB
+            chunks = []
+            downloaded = 0
+            
+            # 计算分片区间
+            ranges = []
+            start = 0
+            while start < total_size:
+                end = min(start + chunk_size - 1, total_size - 1)
+                ranges.append((start, end))
+                start += chunk_size
+                
+            utils.logger.info(f"[BilibiliClient.get_video_media] Start downloading {len(ranges)} chunks of size 2MB...")
+            
+            for index, (start, end) in enumerate(ranges):
+                max_retries = 5
+                chunk_data = None
+                for attempt in range(1, max_retries + 1):
+                    async with httpx.AsyncClient(proxy=self.proxy, follow_redirects=True) as client:
+                        try:
+                            chunk_headers = headers.copy()
+                            chunk_headers["Range"] = f"bytes={start}-{end}"
+                            response = await client.get(url, timeout=self.timeout, headers=chunk_headers)
+                            response.raise_for_status()
+                            chunk_data = response.content
+                            # 校验下载的内容大小是否符合预期
+                            expected_len = end - start + 1
+                            if len(chunk_data) == expected_len:
+                                break
+                            else:
+                                raise httpx.HTTPError(f"Downloaded chunk size mismatch: expected {expected_len}, got {len(chunk_data)}")
+                        except httpx.HTTPError as exc:
+                            utils.logger.error(f"[BilibiliClient.get_video_media] Chunk {index+1}/{len(ranges)} ({start}-{end}) attempt {attempt} failed: {exc}")
+                            if attempt < max_retries:
+                                await asyncio.sleep(attempt * 2)
+                            else:
+                                utils.logger.error(f"[BilibiliClient.get_video_media] Failed to download chunk {index+1} after {max_retries} attempts.")
+                                return None
+                
+                chunks.append(chunk_data)
+                downloaded += len(chunk_data)
+                percent = (downloaded / total_size * 100) if total_size else 0
+                utils.logger.info(f"[BilibiliClient.get_video_media] Download progress: {percent:.1f}% ({downloaded}/{total_size} bytes)")
+                
+            content = b"".join(chunks)
+            utils.logger.info(f"[BilibiliClient.get_video_media] Successfully downloaded {len(content)} bytes via Range chunks")
+            return content
+
+        # 3. 兜底策略：如果不支持 Range 分片，则直接一次性流式下载
+        utils.logger.info(f"[BilibiliClient.get_video_media] Falling back to standard streaming download...")
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            async with httpx.AsyncClient(proxy=self.proxy, follow_redirects=True) as client:
+                try:
+                    async with client.stream("GET", url, timeout=self.timeout, headers=headers) as response:
+                        response.raise_for_status()
+                        total_size = int(response.headers.get("content-length", 0))
+                        downloaded = 0
+                        chunks = []
+                        
+                        async for chunk in response.aiter_bytes(chunk_size=1024 * 1024):  # 1MB chunk
+                            chunks.append(chunk)
+                            downloaded += len(chunk)
+                            percent = (downloaded / total_size * 100) if total_size else 0
+                            utils.logger.info(f"[BilibiliClient.get_video_media] Download progress: {percent:.1f}% ({downloaded}/{total_size} bytes)")
+                            
+                        content = b"".join(chunks)
+                        utils.logger.info(f"[BilibiliClient.get_video_media] Successfully downloaded {len(content)} bytes from CDN")
+                        return content
+                except httpx.HTTPError as exc:
+                    utils.logger.error(f"[BilibiliClient.get_video_media] Attempt {attempt} failed: {exc.__class__.__name__} for {exc.request.url} - {exc}")
+                    if attempt < max_retries:
+                        await asyncio.sleep(2)
+                    else:
+                        return None
 
     async def get_video_comments(
         self,
@@ -400,7 +543,10 @@ class BilibiliClient(AbstractApiClient, ProxyRefreshMixin):
             "ps": ps,
             "order": order_mode,
         }
-        return await self.get(uri, post_data)
+        headers = {
+            "Referer": f"https://space.bilibili.com/{creator_id}/video"
+        }
+        return await self.get(uri, post_data, headers=headers)
 
     async def get_creator_info(self, creator_id: int) -> Dict:
         """
@@ -411,7 +557,10 @@ class BilibiliClient(AbstractApiClient, ProxyRefreshMixin):
         post_data = {
             "mid": creator_id,
         }
-        return await self.get(uri, post_data)
+        headers = {
+            "Referer": f"https://space.bilibili.com/{creator_id}"
+        }
+        return await self.get(uri, post_data, headers=headers)
 
     async def get_creator_fans(
         self,
@@ -433,7 +582,10 @@ class BilibiliClient(AbstractApiClient, ProxyRefreshMixin):
             "ps": ps,
             "gaia_source": "main_web",
         }
-        return await self.get(uri, post_data)
+        headers = {
+            "Referer": f"https://space.bilibili.com/{creator_id}/fans/fans"
+        }
+        return await self.get(uri, post_data, headers=headers)
 
     async def get_creator_followings(
         self,
@@ -455,7 +607,10 @@ class BilibiliClient(AbstractApiClient, ProxyRefreshMixin):
             "ps": ps,
             "gaia_source": "main_web",
         }
-        return await self.get(uri, post_data)
+        headers = {
+            "Referer": f"https://space.bilibili.com/{creator_id}/fans/follow"
+        }
+        return await self.get(uri, post_data, headers=headers)
 
     async def get_creator_dynamics(self, creator_id: int, offset: str = ""):
         """
@@ -470,8 +625,11 @@ class BilibiliClient(AbstractApiClient, ProxyRefreshMixin):
             "host_mid": creator_id,
             "platform": "web",
         }
+        headers = {
+            "Referer": f"https://space.bilibili.com/{creator_id}/dynamic"
+        }
 
-        return await self.get(uri, post_data)
+        return await self.get(uri, post_data, headers=headers)
 
     async def get_creator_all_fans(
         self,

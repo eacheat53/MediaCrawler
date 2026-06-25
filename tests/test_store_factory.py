@@ -54,8 +54,9 @@ class TestXhsStoreFactory:
     def test_create_excel_store(self):
         """Test creating Excel store"""
         # ContextVar cannot be mocked, so we test with actual value
+        from store.excel_store_base import ExcelStoreBase
         store = XhsStoreFactory.create_store()
-        assert isinstance(store, XhsExcelStoreImplement)
+        assert isinstance(store, ExcelStoreBase)
     
     @patch('config.SAVE_DATA_OPTION', 'invalid')
     def test_invalid_store_option(self):

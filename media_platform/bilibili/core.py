@@ -536,6 +536,9 @@ class BilibiliCrawler(AbstractCrawler):
                 headless=headless,
             )
 
+            # 注入反检测脚本
+            await self.cdp_manager.add_stealth_script()
+
             # 显示浏览器信息
             browser_info = await self.cdp_manager.get_browser_info()
             utils.logger.info(f"[BilibiliCrawler] CDP浏览器信息: {browser_info}")
@@ -576,6 +579,7 @@ class BilibiliCrawler(AbstractCrawler):
         video_item_view: Dict = video_item.get("View")
         aid = video_item_view.get("aid")
         cid = video_item_view.get("cid")
+        utils.logger.info(f"[BilibiliCrawler.get_bilibili_video] Fetching play URL for video aid: {aid}, cid: {cid} ...")
         result = await self.get_video_play_url_task(aid, cid, semaphore)
         if result is None:
             utils.logger.info("[BilibiliCrawler.get_bilibili_video] get video play url failed")
@@ -592,10 +596,12 @@ class BilibiliCrawler(AbstractCrawler):
             utils.logger.info("[BilibiliCrawler.get_bilibili_video] get video url failed")
             return
 
+        utils.logger.info(f"[BilibiliCrawler.get_bilibili_video] Downloading video content (size: {max_size} bytes) from CDN...")
         content = await self.bili_client.get_video_media(video_url)
         await asyncio.sleep(config.CRAWLER_MAX_SLEEP_SEC)
         utils.logger.info(f"[BilibiliCrawler.get_bilibili_video] Sleeping for {config.CRAWLER_MAX_SLEEP_SEC} seconds after fetching video {aid}")
         if content is None:
+            utils.logger.error(f"[BilibiliCrawler.get_bilibili_video] Failed to download video content for aid: {aid}")
             return
         extension_file_name = f"video.mp4"
         await bilibili_store.store_video(aid, content, extension_file_name)
