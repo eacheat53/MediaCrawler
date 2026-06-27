@@ -57,11 +57,12 @@ class ZhihuCrawler(AbstractCrawler):
 
     def __init__(self) -> None:
         self.index_url = "https://www.zhihu.com"
+        self.cookie_urls = [self.index_url]
         # self.user_agent = utils.get_user_agent()
         self.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
         self._extractor = ZhihuExtractor()
         self.cdp_manager = None
-        self.ip_proxy_pool = None  # 代理IP池，用于代理自动刷新
+        self.ip_proxy_pool = None  # Proxy IP pool for automatic proxy refresh
 
     async def start(self) -> None:
         """
@@ -80,9 +81,9 @@ class ZhihuCrawler(AbstractCrawler):
             )
 
         async with async_playwright() as playwright:
-            # 根据配置选择启动模式
+            # Choose launch mode based on configuration
             if config.ENABLE_CDP_MODE:
-                utils.logger.info("[ZhihuCrawler] 使用CDP模式启动浏览器")
+                utils.logger.info("[ZhihuCrawler] Launching browser in CDP mode")
                 self.browser_context = await self.launch_browser_with_cdp(
                     playwright,
                     playwright_proxy_format,
@@ -90,7 +91,7 @@ class ZhihuCrawler(AbstractCrawler):
                     headless=config.CDP_HEADLESS,
                 )
             else:
-                utils.logger.info("[ZhihuCrawler] 使用标准模式启动浏览器")
+                utils.logger.info("[ZhihuCrawler] Launching browser in standard mode")
                 # Launch a browser context.
                 chromium = playwright.chromium
                 self.browser_context = await self.launch_browser(
@@ -114,18 +115,22 @@ class ZhihuCrawler(AbstractCrawler):
                 )
                 await login_obj.begin()
                 await self.zhihu_client.update_cookies(
-                    browser_context=self.browser_context
+                    browser_context=self.browser_context,
+                    urls=self.cookie_urls,
                 )
 
-            # 知乎的搜索接口需要打开搜索页面之后cookies才能访问API，单独的首页不行
+            # Zhihu's search API requires opening the search page first to access cookies, homepage alone won't work
             utils.logger.info(
-                "[ZhihuCrawler.start] Zhihu跳转到搜索页面获取搜索页面的Cookies，该过程需要5秒左右"
+                "[ZhihuCrawler.start] Zhihu navigating to search page to get search page cookies, this process takes about 5 seconds"
             )
             await self.context_page.goto(
                 f"{self.index_url}/search?q=python&search_source=Guess&utm_content=search_hot&type=content"
             )
             await asyncio.sleep(5)
-            await self.zhihu_client.update_cookies(browser_context=self.browser_context)
+            await self.zhihu_client.update_cookies(
+                browser_context=self.browser_context,
+                urls=self.cookie_urls,
+            )
 
             crawler_type_var.set(config.CRAWLER_TYPE)
             if config.CRAWLER_TYPE == "search":
@@ -273,7 +278,7 @@ class ZhihuCrawler(AbstractCrawler):
             )
             await zhihu_store.save_creator(creator=createor_info)
 
-            # 默认只提取回答信息，如果需要文章和视频，把下面的注释打开即可
+            # By default, only answer information is extracted, uncomment below if articles and videos are needed
 
             # Get all anwser information of the creator
             all_content_list = await self.zhihu_client.get_all_anwser_by_creator(
@@ -315,7 +320,7 @@ class ZhihuCrawler(AbstractCrawler):
             utils.logger.info(
                 f"[ZhihuCrawler.get_specified_notes] Begin get specified note {full_note_url}"
             )
-            # judge note type
+            # Judge note type
             note_type: str = judge_zhihu_url(full_note_url)
             if note_type == constant.ANSWER_NAME:
                 question_id = full_note_url.split("/")[-3]
@@ -393,8 +398,9 @@ class ZhihuCrawler(AbstractCrawler):
         utils.logger.info(
             "[ZhihuCrawler.create_zhihu_client] Begin create zhihu API client ..."
         )
-        cookie_str, cookie_dict = utils.convert_cookies(
-            await self.browser_context.cookies()
+        cookie_str, cookie_dict = await utils.convert_browser_context_cookies(
+            self.browser_context,
+            urls=self.cookie_urls,
         )
         zhihu_client_obj = ZhiHuClient(
             proxy=httpx_proxy,
@@ -412,7 +418,7 @@ class ZhihuCrawler(AbstractCrawler):
             },
             playwright_page=self.context_page,
             cookie_dict=cookie_dict,
-            proxy_ip_pool=self.ip_proxy_pool,  # 传递代理池用于自动刷新
+            proxy_ip_pool=self.ip_proxy_pool,  # Pass proxy pool for automatic refresh
         )
         return zhihu_client_obj
 
@@ -440,7 +446,7 @@ class ZhihuCrawler(AbstractCrawler):
                 proxy=playwright_proxy,  # type: ignore
                 viewport={"width": 1920, "height": 1080},
                 user_agent=user_agent,
-                channel="chrome",  # 使用系统的Chrome稳定版
+                channel="chrome",  # Use system Chrome stable version
             )
             return browser_context
         else:
@@ -458,7 +464,7 @@ class ZhihuCrawler(AbstractCrawler):
         headless: bool = True,
     ) -> BrowserContext:
         """
-        使用CDP模式启动浏览器
+        Launch browser using CDP mode
         """
         try:
             self.cdp_manager = CDPBrowserManager()
@@ -469,15 +475,15 @@ class ZhihuCrawler(AbstractCrawler):
                 headless=headless,
             )
 
-            # 显示浏览器信息
+            # Display browser information
             browser_info = await self.cdp_manager.get_browser_info()
-            utils.logger.info(f"[ZhihuCrawler] CDP浏览器信息: {browser_info}")
+            utils.logger.info(f"[ZhihuCrawler] CDP browser info: {browser_info}")
 
             return browser_context
 
         except Exception as e:
-            utils.logger.error(f"[ZhihuCrawler] CDP模式启动失败，回退到标准模式: {e}")
-            # 回退到标准模式
+            utils.logger.error(f"[ZhihuCrawler] CDP mode launch failed, falling back to standard mode: {e}")
+            # Fall back to standard mode
             chromium = playwright.chromium
             return await self.launch_browser(
                 chromium, playwright_proxy, user_agent, headless
@@ -485,7 +491,7 @@ class ZhihuCrawler(AbstractCrawler):
 
     async def close(self):
         """Close browser context"""
-        # 如果使用CDP模式，需要特殊处理
+        # Special handling if using CDP mode
         if self.cdp_manager:
             await self.cdp_manager.cleanup()
             self.cdp_manager = None

@@ -20,7 +20,7 @@
 # -*- coding: utf-8 -*-
 # @Author  : helloteemo
 # @Time    : 2024/7/12 20:01
-# @Desc    : bilibili 媒体保存
+# @Desc    : Bilibili media storage
 import pathlib
 from typing import Dict
 
@@ -28,10 +28,15 @@ import aiofiles
 
 from base.base_crawler import AbstractStoreImage, AbstractStoreVideo
 from tools import utils
+import config
 
 
 class BilibiliVideo(AbstractStoreVideo):
-    video_store_path: str = "data/bili/videos"
+    def __init__(self):
+        if config.SAVE_DATA_PATH:
+            self.video_store_path = f"{config.SAVE_DATA_PATH}/bili/videos"
+        else:
+            self.video_store_path = "data/bili/videos"
 
     async def store_video(self, video_content_item: Dict):
         """

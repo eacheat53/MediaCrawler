@@ -1,16 +1,3 @@
-<div align="center" markdown="1">
-   <sup>Special thanks to:</sup>
-   <br>
-   <br>
-   <a href="https://go.warp.dev/MediaCrawler">
-      <img alt="Warp sponsorship" width="400" src="https://github.com/warpdotdev/brand-assets/blob/main/Github/Sponsor/Warp-Github-LG-02.png?raw=true">
-   </a>
-
-### [Warp is built for coding with multiple AI agents](https://go.warp.dev/MediaCrawler)
-
-
-</div>
-<hr>
 # 🔥 MediaCrawler - Social Media Platform Crawler 🕷️
 
 <div align="center">
@@ -60,16 +47,14 @@ A powerful **multi-platform social media data collection tool** that supports cr
 | Zhihu   | ✅          | ✅              | ✅        | ✅              | ✅          | ✅        | ✅              |
 
 
-<details id="pro-version">
-<summary>🔗 <strong>🚀 MediaCrawlerPro Major Release! More features, better architectural design!</strong></summary>
-
-### 🚀 MediaCrawlerPro Major Release!
+<strong>MediaCrawlerPro Major Release! Open source is not easy, welcome to subscribe and support!</strong>
 
 > Focus on learning mature project architectural design, not just crawling technology. The code design philosophy of the Pro version is equally worth in-depth study!
 
 [MediaCrawlerPro](https://github.com/MediaCrawlerPro) core advantages over the open-source version:
 
 #### 🎯 Core Feature Upgrades
+- ✅ **Content Deconstruction Agent** (New feature)
 - ✅ **Resume crawling functionality** (Key feature)
 - ✅ **Multi-account + IP proxy pool support** (Key feature)
 - ✅ **Remove Playwright dependency**, easier to use
@@ -83,10 +68,9 @@ A powerful **multi-platform social media data collection tool** that supports cr
 #### 🎁 Additional Features
 - ✅ **Social media video downloader desktop app** (suitable for learning full-stack development)
 - ✅ **Multi-platform homepage feed recommendations** (HomeFeed)
-- [ ] **AI Agent based on social media platforms is under development 🚀🚀**
+- [ ] **AI Agent based on comment analysis is under development 🚀🚀**
 
 Click to view: [MediaCrawlerPro Project Homepage](https://github.com/MediaCrawlerPro) for more information
-</details>
 
 ## 🚀 Quick Start
 
@@ -148,6 +132,37 @@ uv run main.py --platform xhs --lt qrcode --type detail
 uv run main.py --help
 ```
 
+## WebUI Support
+
+<details>
+<summary>🖥️ <strong>WebUI Visual Operation Interface</strong></summary>
+
+MediaCrawler provides a web-based visual operation interface, allowing you to easily use crawler features without command line.
+
+#### Start WebUI Service
+
+```shell
+# Start API server (default port 8080)
+uv run uvicorn api.main:app --port 8080 --reload
+
+# Or start using module method
+uv run python -m api.main
+```
+
+After successful startup, visit `http://localhost:8080` to open the WebUI interface.
+
+#### WebUI Features
+
+- Visualize crawler parameter configuration (platform, login method, crawling type, etc.)
+- Real-time view of crawler running status and logs
+- Data preview and export
+
+#### Interface Preview
+
+<img src="docs/static/images/img_8.png" alt="WebUI Interface Preview">
+
+</details>
+
 <details>
 <summary>🔗 <strong>Using Python native venv environment management (Not recommended)</strong></summary>
 
@@ -206,7 +221,7 @@ python main.py --help
 
 ## 💾 Data Storage
 
-MediaCrawler supports multiple data storage methods, including CSV, JSON, Excel, SQLite, and MySQL databases.
+MediaCrawler supports multiple data storage methods, including CSV, JSON, JSONL, Excel, SQLite, and MySQL databases.
 
 📖 **For detailed usage instructions, please see: [Data Storage Guide](docs/data_storage_guide.md)**
 
@@ -214,45 +229,29 @@ MediaCrawler supports multiple data storage methods, including CSV, JSON, Excel,
 
 [🚀 MediaCrawlerPro Major Release 🚀! More features, better architectural design!](https://github.com/MediaCrawlerPro)
 
-## 🤝 Community & Support
-
 ### 💬 Discussion Groups
 - **WeChat Discussion Group**: [Click to join](https://nanmicoder.github.io/MediaCrawler/%E5%BE%AE%E4%BF%A1%E4%BA%A4%E6%B5%81%E7%BE%A4.html)
+- **Bilibili Account**: [Follow me](https://space.bilibili.com/434377496), sharing AI and crawler technology knowledge
 
-### 📚 Documentation & Tutorials
-- **Online Documentation**: [MediaCrawler Complete Documentation](https://nanmicoder.github.io/MediaCrawler/)
-- **Crawler Tutorial**: [CrawlerTutorial Free Tutorial](https://github.com/NanmiCoder/CrawlerTutorial)
-
-
-# Other common questions can be viewed in the online documentation
->
-> The online documentation includes usage methods, common questions, joining project discussion groups, etc.
-> [MediaCrawler Online Documentation](https://nanmicoder.github.io/MediaCrawler/)
->
-
-# Author's Knowledge Services
-> If you want to quickly get started and learn the usage of this project, source code architectural design, learn programming technology, or want to understand the source code design of MediaCrawlerPro, you can check out my paid knowledge column.
-
-[Author's Paid Knowledge Column Introduction](https://nanmicoder.github.io/MediaCrawler/%E7%9F%A5%E8%AF%86%E4%BB%98%E8%B4%B9%E4%BB%8B%E7%BB%8D.html)
-
-
----
-
-## ⭐ Star Trend Chart
-
-If this project helps you, please give a ⭐ Star to support and let more people see MediaCrawler!
-
-[![Star History Chart](https://api.star-history.com/svg?repos=NanmiCoder/MediaCrawler&type=Date)](https://star-history.com/#NanmiCoder/MediaCrawler&Date)
 
 ### 💰 Sponsor Display
 
-<a href="https://www.swiftproxy.net/?ref=nanmi">
-<img src="docs/static/images/img_5.png">
+<a href="https://tikhub.io/?utm_source=github.com/NanmiCoder/MediaCrawler&utm_medium=marketing_social&utm_campaign=retargeting&utm_content=carousel_ad">
+<img width="500" src="docs/static/images/tikhub_banner_zh.png">
 <br>
-**Swiftproxy** - 90M+ global high-quality pure residential IPs, register to get free 500MB test traffic, dynamic traffic never expires!
-> Exclusive discount code: **GHB5** Get 10% off instantly!
+TikHub.io provides 900+ highly stable data interfaces, covering 14+ mainstream domestic and international platforms including TK, DY, XHS, Y2B, Ins, X, etc. Supports multi-dimensional public data APIs for users, content, products, comments, etc., with 40M+ cleaned structured datasets. Use invitation code <code>cfzyejV9</code> to register and recharge, and get an additional $2 bonus.
 </a>
+<br>
+<br>
 
+<a href="https://www.atlascloud.ai/?utm_source=github&utm_medium=link&utm_campaign=mei%27da%27c%27rmeidacrawler">
+<img width="500" alt="Atlas Cloud" src="docs/static/images/atlas_cloud_logo_black.png#gh-light-mode-only">
+<img width="500" alt="Atlas Cloud" src="docs/static/images/atlas_cloud_logo_white.png#gh-dark-mode-only">
+</a>
+<br>
+<a href="https://www.atlascloud.ai/?utm_source=github&utm_medium=link&utm_campaign=mei%27da%27c%27rmeidacrawler">Atlas Cloud</a> is a full-modal AI inference platform that gives developers a single AI API to access video generation, image generation, and LLM APIs. Instead of managing multiple vendor integrations, you connect once and get unified access to 300+ curated models across all modalities. Check out Atlas Cloud's new <a href="https://www.atlascloud.ai/console/coding-plan">coding plan promotion</a> for more budget-friendly API access.
+
+---
 
 ### 🤝 Become a Sponsor
 
@@ -261,10 +260,24 @@ Become a sponsor and showcase your product here, getting massive exposure daily!
 **Contact Information**:
 - WeChat: `relakkes`
 - Email: `relakkes@gmail.com`
+---
+
+### 📚 Other
+- **FAQ**: [MediaCrawler Complete Documentation](https://nanmicoder.github.io/MediaCrawler/)
+- **Crawler Beginner Tutorial**: [CrawlerTutorial Free Tutorial](https://github.com/NanmiCoder/CrawlerTutorial)
+- **News Crawler Open Source Project**: [NewsCrawlerCollection](https://github.com/NanmiCoder/NewsCrawlerCollection)
+
+
+## ⭐ Star Trend Chart
+
+If this project helps you, please give a ⭐ Star to support and let more people see MediaCrawler!
+
+[![Star History Chart](https://api.star-history.com/svg?repos=NanmiCoder/MediaCrawler&type=Date)](https://star-history.com/#NanmiCoder/MediaCrawler&Date)
 
 
 ## 📚 References
 
+- **Xiaohongshu Signature Repository**: [Cloxl's xhs signature repository](https://github.com/Cloxl/xhshow)
 - **Xiaohongshu Client**: [ReaJason's xhs repository](https://github.com/ReaJason/xhs)
 - **SMS Forwarding**: [SmsForwarder reference repository](https://github.com/pppscn/SmsForwarder)
 - **Intranet Penetration Tool**: [ngrok official documentation](https://ngrok.com/docs/)

@@ -18,15 +18,15 @@
 # 使用本代码即表示您同意遵守上述原则和LICENSE中的所有条款。
 
 
-# 知乎平台配置
+# Zhihu platform configuration
 
-# 指定知乎用户URL列表
+# Specify Zhihu user URL list
 ZHIHU_CREATOR_URL_LIST = [
     "https://www.zhihu.com/people/yd1234567",
     # ........................
 ]
 
-# 指定知乎ID列表
+# Specify Zhihu ID list
 ZHIHU_SPECIFIED_ID_LIST = [
     "https://www.zhihu.com/question/463876096/answer/3632161098",
 ]

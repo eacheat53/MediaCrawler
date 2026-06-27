@@ -20,7 +20,7 @@
 
 # -*- coding: utf-8 -*-
 # @Author  : relakkes@gmail.com
-# @Name    : 程序员阿江-Relakkes
+# @Name: Programmer Ajiang-Relakkes
 # @Time    : 2024/6/2 10:35
 # @Desc    :
 
@@ -45,9 +45,9 @@ class TestExpiringLocalCache(unittest.TestCase):
         self.assertIsNone(self.cache.get('key'))
 
     def test_clear(self):
-        # 设置两个键值对，过期时间为11秒
+        # Set two key-value pairs with expiration time of 11 seconds
         self.cache.set('key', 'value', 11)
-        # 睡眠12秒，让cache类的定时任务执行一次
+        # Sleep for 12 seconds to let the cache class's scheduled task execute once
         time.sleep(12)
         self.assertIsNone(self.cache.get('key'))
 

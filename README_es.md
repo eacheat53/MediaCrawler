@@ -1,17 +1,3 @@
-<div align="center" markdown="1">
-   <sup>Special thanks to:</sup>
-   <br>
-   <br>
-   <a href="https://go.warp.dev/MediaCrawler">
-      <img alt="Warp sponsorship" width="400" src="https://github.com/warpdotdev/brand-assets/blob/main/Github/Sponsor/Warp-Github-LG-02.png?raw=true">
-   </a>
-
-### [Warp is built for coding with multiple AI agents](https://go.warp.dev/MediaCrawler)
-
-
-</div>
-<hr>
-
 # 🔥 MediaCrawler - Rastreador de Plataformas de Redes Sociales 🕷️
 
 <div align="center">
@@ -61,16 +47,14 @@ Una poderosa **herramienta de recolección de datos de redes sociales multiplata
 | Zhihu   | ✅          | ✅              | ✅        | ✅              | ✅          | ✅        | ✅              |
 
 
-<details id="pro-version">
-<summary>🔗 <strong>🚀 ¡Lanzamiento Mayor de MediaCrawlerPro! ¡Más características, mejor diseño arquitectónico!</strong></summary>
-
-### 🚀 ¡Lanzamiento Mayor de MediaCrawlerPro!
+<strong>¡Lanzamiento Mayor de MediaCrawlerPro! ¡El código abierto no es fácil, bienvenido a suscribirse y apoyar!</strong>
 
 > Enfócate en aprender el diseño arquitectónico de proyectos maduros, no solo tecnología de rastreo. ¡La filosofía de diseño de código de la versión Pro también vale la pena estudiar en profundidad!
 
 [MediaCrawlerPro](https://github.com/MediaCrawlerPro) ventajas principales sobre la versión de código abierto:
 
 #### 🎯 Actualizaciones de Características Principales
+- ✅ **Agente de Deconstrucción de Contenido** (Nueva función)
 - ✅ **Funcionalidad de reanudación de rastreo** (Característica clave)
 - ✅ **Soporte de múltiples cuentas + pool de proxy IP** (Característica clave)
 - ✅ **Eliminar dependencia de Playwright**, más fácil de usar
@@ -84,10 +68,9 @@ Una poderosa **herramienta de recolección de datos de redes sociales multiplata
 #### 🎁 Características Adicionales
 - ✅ **Aplicación de escritorio descargadora de videos de redes sociales** (adecuada para aprender desarrollo full-stack)
 - ✅ **Recomendaciones de feed de página de inicio multiplataforma** (HomeFeed)
-- [ ] **Agente AI basado en plataformas de redes sociales está en desarrollo 🚀🚀**
+- [ ] **Agente AI basado en análisis de comentarios está en desarrollo 🚀🚀**
 
 Haga clic para ver: [Página de Inicio del Proyecto MediaCrawlerPro](https://github.com/MediaCrawlerPro) para más información
-</details>
 
 ## 🚀 Inicio Rápido
 
@@ -149,6 +132,37 @@ uv run main.py --platform xhs --lt qrcode --type detail
 uv run main.py --help
 ```
 
+## Soporte WebUI
+
+<details>
+<summary>🖥️ <strong>Interfaz de Operación Visual WebUI</strong></summary>
+
+MediaCrawler proporciona una interfaz de operación visual basada en web, permitiéndole usar fácilmente las funciones del rastreador sin línea de comandos.
+
+#### Iniciar Servicio WebUI
+
+```shell
+# Iniciar servidor API (puerto predeterminado 8080)
+uv run uvicorn api.main:app --port 8080 --reload
+
+# O iniciar usando método de módulo
+uv run python -m api.main
+```
+
+Después de iniciar exitosamente, visite `http://localhost:8080` para abrir la interfaz WebUI.
+
+#### Características de WebUI
+
+- Configuración visual de parámetros del rastreador (plataforma, método de login, tipo de rastreo, etc.)
+- Vista en tiempo real del estado de ejecución del rastreador y logs
+- Vista previa y exportación de datos
+
+#### Vista Previa de la Interfaz
+
+<img src="docs/static/images/img_8.png" alt="Vista Previa de Interfaz WebUI">
+
+</details>
+
 <details>
 <summary>🔗 <strong>Usando gestión de entorno venv nativo de Python (No recomendado)</strong></summary>
 
@@ -207,75 +221,28 @@ python main.py --help
 
 ## 💾 Almacenamiento de Datos
 
-Soporta múltiples métodos de almacenamiento de datos:
-- **Archivos CSV**: Soporta guardar en CSV (bajo el directorio `data/`)
-- **Archivos JSON**: Soporta guardar en JSON (bajo el directorio `data/`)
-- **Almacenamiento en Base de Datos**
-  - Use el parámetro `--init_db` para la inicialización de la base de datos (cuando use `--init_db`, no se necesitan otros argumentos opcionales)
-  - **Base de Datos SQLite**: Base de datos ligera, no requiere servidor, adecuada para uso personal (recomendado)
-    1. Inicialización: `--init_db sqlite`
-    2. Almacenamiento de Datos: `--save_data_option sqlite`
-  - **Base de Datos MySQL**: Soporta guardar en la base de datos relacional MySQL (la base de datos debe crearse con anticipación)
-    1. Inicialización: `--init_db mysql`
-    2. Almacenamiento de Datos: `--save_data_option db` (el parámetro db se mantiene por compatibilidad con actualizaciones históricas)
+MediaCrawler soporta múltiples métodos de almacenamiento de datos, incluyendo CSV, JSON, JSONL, Excel, SQLite y bases de datos MySQL.
 
+📖 **Para instrucciones de uso detalladas, por favor vea: [Guía de Almacenamiento de Datos](docs/data_storage_guide.md)**
 
-### Ejemplos de Uso:
-```shell
-# Inicializar la base de datos SQLite (cuando use '--init_db', no se necesitan otros argumentos opcionales)
-uv run main.py --init_db sqlite
-# Usar SQLite para almacenar datos (recomendado para usuarios personales)
-uv run main.py --platform xhs --lt qrcode --type search --save_data_option sqlite
-```
-```shell
-# Inicializar la base de datos MySQL
-uv run main.py --init_db mysql
-# Usar MySQL para almacenar datos (el parámetro db se mantiene por compatibilidad con actualizaciones históricas)
-uv run main.py --platform xhs --lt qrcode --type search --save_data_option db
-```
-
----
 
 [🚀 ¡Lanzamiento Mayor de MediaCrawlerPro 🚀! ¡Más características, mejor diseño arquitectónico!](https://github.com/MediaCrawlerPro)
 
-## 🤝 Comunidad y Soporte
 
 ### 💬 Grupos de Discusión
 - **Grupo de Discusión WeChat**: [Haga clic para unirse](https://nanmicoder.github.io/MediaCrawler/%E5%BE%AE%E4%BF%A1%E4%BA%A4%E6%B5%81%E7%BE%A4.html)
+- **Cuenta de Bilibili**: [Sígueme](https://space.bilibili.com/434377496), compartiendo conocimientos de tecnología de IA y rastreo
 
-### 📚 Documentación y Tutoriales
-- **Documentación en Línea**: [Documentación Completa de MediaCrawler](https://nanmicoder.github.io/MediaCrawler/)
-- **Tutorial de Rastreador**: [Tutorial Gratuito CrawlerTutorial](https://github.com/NanmiCoder/CrawlerTutorial)
-
-
-# Otras preguntas comunes pueden verse en la documentación en línea
->
-> La documentación en línea incluye métodos de uso, preguntas comunes, unirse a grupos de discusión del proyecto, etc.
-> [Documentación en Línea de MediaCrawler](https://nanmicoder.github.io/MediaCrawler/)
->
-
-# Servicios de Conocimiento del Autor
-> Si quiere comenzar rápidamente y aprender el uso de este proyecto, diseño arquitectónico del código fuente, aprender tecnología de programación, o quiere entender el diseño del código fuente de MediaCrawlerPro, puede revisar mi columna de conocimiento pagado.
-
-[Introducción de la Columna de Conocimiento Pagado del Autor](https://nanmicoder.github.io/MediaCrawler/%E7%9F%A5%E8%AF%86%E4%BB%98%E8%B4%B9%E4%BB%8B%E7%BB%8D.html)
-
-
----
-
-## ⭐ Gráfico de Tendencia de Estrellas
-
-¡Si este proyecto te ayuda, por favor da una ⭐ Estrella para apoyar y que más personas vean MediaCrawler!
-
-[![Star History Chart](https://api.star-history.com/svg?repos=NanmiCoder/MediaCrawler&type=Date)](https://star-history.com/#NanmiCoder/MediaCrawler&Date)
 
 ### 💰 Exhibición de Patrocinadores
 
-<a href="https://www.swiftproxy.net/?ref=nanmi">
-<img src="docs/static/images/img_5.png">
+<a href="https://tikhub.io/?utm_source=github.com/NanmiCoder/MediaCrawler&utm_medium=marketing_social&utm_campaign=retargeting&utm_content=carousel_ad">
+<img width="500" src="docs/static/images/tikhub_banner_zh.png">
 <br>
-**Swiftproxy** - ¡90M+ IPs residenciales puras de alta calidad globales, regístrese para obtener 500MB de tráfico de prueba gratuito, el tráfico dinámico nunca expira!
-> Código de descuento exclusivo: **GHB5** ¡Obtenga 10% de descuento instantáneamente!
+TikHub.io proporciona 900+ interfaces de datos altamente estables, cubriendo 14+ plataformas principales nacionales e internacionales incluyendo TK, DY, XHS, Y2B, Ins, X, etc. Soporta APIs de datos públicos multidimensionales para usuarios, contenido, productos, comentarios, etc., con 40M+ conjuntos de datos estructurados limpios. Use el código de invitación <code>cfzyejV9</code> para registrarse y recargar, y obtenga $2 adicionales de bonificación.
 </a>
+
+---
 
 ### 🤝 Conviértase en Patrocinador
 
@@ -284,10 +251,24 @@ uv run main.py --platform xhs --lt qrcode --type search --save_data_option db
 **Información de Contacto**:
 - WeChat: `relakkes`
 - Email: `relakkes@gmail.com`
+---
+
+### 📚 Otros
+- **Preguntas Frecuentes**: [Documentación Completa de MediaCrawler](https://nanmicoder.github.io/MediaCrawler/)
+- **Tutorial de Rastreador para Principiantes**: [Tutorial Gratuito CrawlerTutorial](https://github.com/NanmiCoder/CrawlerTutorial)
+- **Proyecto de Código Abierto de Rastreador de Noticias**: [NewsCrawlerCollection](https://github.com/NanmiCoder/NewsCrawlerCollection)
+
+
+## ⭐ Gráfico de Tendencia de Estrellas
+
+¡Si este proyecto te ayuda, por favor da una ⭐ Estrella para apoyar y que más personas vean MediaCrawler!
+
+[![Star History Chart](https://api.star-history.com/svg?repos=NanmiCoder/MediaCrawler&type=Date)](https://star-history.com/#NanmiCoder/MediaCrawler&Date)
 
 
 ## 📚 Referencias
 
+- **Repositorio de Firma Xiaohongshu**: [Repositorio de firma xhs de Cloxl](https://github.com/Cloxl/xhshow)
 - **Cliente Xiaohongshu**: [Repositorio xhs de ReaJason](https://github.com/ReaJason/xhs)
 - **Reenvío de SMS**: [Repositorio de referencia SmsForwarder](https://github.com/pppscn/SmsForwarder)
 - **Herramienta de Penetración de Intranet**: [Documentación oficial de ngrok](https://ngrok.com/docs/)

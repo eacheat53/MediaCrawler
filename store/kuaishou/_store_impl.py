@@ -21,7 +21,7 @@
 # -*- coding: utf-8 -*-
 # @Author  : persist1@126.com
 # @Time    : 2025/9/5 19:34
-# @Desc    : 快手存储实现类
+# @Desc    : Kuaishou storage implementation class
 import asyncio
 import csv
 import json
@@ -43,7 +43,7 @@ from database.mongodb_store_base import MongoDBStoreBase
 
 
 def calculate_number_of_files(file_store_path: str) -> int:
-    """计算数据保存文件的前部分排序数字，支持每次运行代码不写到同一个文件中
+    """Calculate the prefix sorting number for data save files, supporting writing to different files for each run
     Args:
         file_store_path;
     Returns:
@@ -109,7 +109,8 @@ class KuaishouDbStoreImplement(AbstractStore):
                 session.add(new_content)
             else:
                 for key, value in content_item.items():
-                    setattr(video_detail, key, value)
+                    if hasattr(video_detail, key):
+                        setattr(video_detail, key, value)
             await session.commit()
 
     async def store_comment(self, comment_item: Dict):
@@ -130,7 +131,8 @@ class KuaishouDbStoreImplement(AbstractStore):
                 session.add(new_comment)
             else:
                 for key, value in comment_item.items():
-                    setattr(comment_detail, key, value)
+                    if hasattr(comment_detail, key):
+                        setattr(comment_detail, key, value)
             await session.commit()
 
 
@@ -165,22 +167,37 @@ class KuaishouJsonStoreImplement(AbstractStore):
         pass
 
 
+class KuaishouJsonlStoreImplement(AbstractStore):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.writer = AsyncFileWriter(platform="kuaishou", crawler_type=crawler_type_var.get())
+
+    async def store_content(self, content_item: Dict):
+        await self.writer.write_to_jsonl(item_type="contents", item=content_item)
+
+    async def store_comment(self, comment_item: Dict):
+        await self.writer.write_to_jsonl(item_type="comments", item=comment_item)
+
+    async def store_creator(self, creator: Dict):
+        pass
+
+
 class KuaishouSqliteStoreImplement(KuaishouDbStoreImplement):
     async def store_creator(self, creator: Dict):
         pass
 
 
 class KuaishouMongoStoreImplement(AbstractStore):
-    """快手MongoDB存储实现"""
+    """Kuaishou MongoDB storage implementation"""
 
     def __init__(self):
         self.mongo_store = MongoDBStoreBase(collection_prefix="kuaishou")
 
     async def store_content(self, content_item: Dict):
         """
-        存储视频内容到MongoDB
+        Store video content to MongoDB
         Args:
-            content_item: 视频内容数据
+            content_item: Video content data
         """
         video_id = content_item.get("video_id")
         if not video_id:
@@ -195,9 +212,9 @@ class KuaishouMongoStoreImplement(AbstractStore):
 
     async def store_comment(self, comment_item: Dict):
         """
-        存储评论到MongoDB
+        Store comment to MongoDB
         Args:
-            comment_item: 评论数据
+            comment_item: Comment data
         """
         comment_id = comment_item.get("comment_id")
         if not comment_id:
@@ -212,9 +229,9 @@ class KuaishouMongoStoreImplement(AbstractStore):
 
     async def store_creator(self, creator_item: Dict):
         """
-        存储创作者信息到MongoDB
+        Store creator information to MongoDB
         Args:
-            creator_item: 创作者数据
+            creator_item: Creator data
         """
         user_id = creator_item.get("user_id")
         if not user_id:
@@ -229,7 +246,7 @@ class KuaishouMongoStoreImplement(AbstractStore):
 
 
 class KuaishouExcelStoreImplement:
-    """快手Excel存储实现 - 全局单例"""
+    """Kuaishou Excel storage implementation - Global singleton"""
 
     def __new__(cls, *args, **kwargs):
         from store.excel_store_base import ExcelStoreBase

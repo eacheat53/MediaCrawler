@@ -54,8 +54,15 @@ class DouYinCrawler(AbstractCrawler):
 
     def __init__(self) -> None:
         self.index_url = "https://www.douyin.com"
+        self.cookie_urls = [
+            "https://douyin.com",
+            self.index_url,
+            "https://creator.douyin.com",
+            "https://douhot.douyin.com",
+            "https://live.douyin.com",
+        ]
         self.cdp_manager = None
-        self.ip_proxy_pool = None  # 代理IP池，用于代理自动刷新
+        self.ip_proxy_pool = None  # Proxy IP pool for automatic proxy refresh
 
     async def start(self) -> None:
         playwright_proxy_format, httpx_proxy_format = None, None
@@ -65,7 +72,7 @@ class DouYinCrawler(AbstractCrawler):
             playwright_proxy_format, httpx_proxy_format = utils.format_proxy_info(ip_proxy_info)
 
         async with async_playwright() as playwright:
-            # 根据配置选择启动模式
+            # Select startup mode based on configuration
             if config.ENABLE_CDP_MODE:
                 utils.logger.info("[DouYinCrawler] 使用CDP模式启动浏览器")
                 self.browser_context = await self.launch_browser_with_cdp(
@@ -100,7 +107,10 @@ class DouYinCrawler(AbstractCrawler):
                     cookie_str=config.COOKIES,
                 )
                 await login_obj.begin()
-                await self.dy_client.update_cookies(browser_context=self.browser_context)
+                await self.dy_client.update_cookies(
+                    browser_context=self.browser_context,
+                    urls=self.cookie_urls,
+                )
             crawler_type_var.set(config.CRAWLER_TYPE)
             if config.CRAWLER_TYPE == "search":
                 # Search for notes and retrieve their comment information.
@@ -151,19 +161,24 @@ class DouYinCrawler(AbstractCrawler):
                     utils.logger.error(f"[DouYinCrawler.search] search douyin keyword: {keyword} failed，账号也许被风控了。")
                     break
                 dy_search_id = posts_res.get("extra", {}).get("logid", "")
+                page_aweme_list = []
                 for post_item in posts_res.get("data"):
                     try:
                         aweme_info: Dict = (post_item.get("aweme_info") or post_item.get("aweme_mix_info", {}).get("mix_items")[0])
                     except TypeError:
                         continue
                     aweme_list.append(aweme_info.get("aweme_id", ""))
+                    page_aweme_list.append(aweme_info.get("aweme_id", ""))
                     await douyin_store.update_douyin_aweme(aweme_item=aweme_info)
                     await self.get_aweme_media(aweme_item=aweme_info)
+                
+                # Batch get note comments for the current page
+                await self.batch_get_note_comments(page_aweme_list)
+
                 # Sleep after each page navigation
                 await asyncio.sleep(config.CRAWLER_MAX_SLEEP_SEC)
                 utils.logger.info(f"[DouYinCrawler.search] Sleeping for {config.CRAWLER_MAX_SLEEP_SEC} seconds after page {page-1}")
             utils.logger.info(f"[DouYinCrawler.search] keyword:{keyword}, aweme_list:{aweme_list}")
-            await self.batch_get_note_comments(aweme_list)
 
     async def get_specified_awemes(self):
         """Get the information and comments of the specified post from URLs or IDs"""
@@ -173,12 +188,12 @@ class DouYinCrawler(AbstractCrawler):
             try:
                 video_info = parse_video_info_from_url(video_url)
 
-                # 处理短链接
+                # Handling short links
                 if video_info.url_type == "short":
                     utils.logger.info(f"[DouYinCrawler.get_specified_awemes] Resolving short link: {video_url}")
                     resolved_url = await self.dy_client.resolve_short_url(video_url)
                     if resolved_url:
-                        # 从解析后的URL中提取视频ID
+                        # Extract video ID from parsed URL
                         video_info = parse_video_info_from_url(resolved_url)
                         utils.logger.info(f"[DouYinCrawler.get_specified_awemes] Short link resolved to aweme ID: {video_info.aweme_id}")
                     else:
@@ -235,7 +250,7 @@ class DouYinCrawler(AbstractCrawler):
     async def get_comments(self, aweme_id: str, semaphore: asyncio.Semaphore) -> None:
         async with semaphore:
             try:
-                # 将关键词列表传递给 get_aweme_all_comments 方法
+                # Pass the list of keywords to the get_aweme_all_comments method
                 # Use fixed crawling interval
                 crawl_interval = config.CRAWLER_MAX_SLEEP_SEC
                 await self.dy_client.get_aweme_all_comments(
@@ -318,7 +333,10 @@ class DouYinCrawler(AbstractCrawler):
 
     async def create_douyin_client(self, httpx_proxy: Optional[str]) -> DouYinClient:
         """Create douyin client"""
-        cookie_str, cookie_dict = utils.convert_cookies(await self.browser_context.cookies())  # type: ignore
+        cookie_str, cookie_dict = await utils.convert_browser_context_cookies(
+            self.browser_context,
+            urls=self.cookie_urls,
+        )  # type: ignore
         douyin_client = DouYinClient(
             proxy=httpx_proxy,
             headers={
@@ -331,7 +349,7 @@ class DouYinCrawler(AbstractCrawler):
             },
             playwright_page=self.context_page,
             cookie_dict=cookie_dict,
-            proxy_ip_pool=self.ip_proxy_pool,  # 传递代理池用于自动刷新
+            proxy_ip_pool=self.ip_proxy_pool,  # Pass proxy pool for automatic refresh
         )
         return douyin_client
 
@@ -381,10 +399,10 @@ class DouYinCrawler(AbstractCrawler):
                 headless=headless,
             )
 
-            # 添加反检测脚本
+            # Add anti-detection script
             await self.cdp_manager.add_stealth_script()
 
-            # 显示浏览器信息
+            # Show browser information
             browser_info = await self.cdp_manager.get_browser_info()
             utils.logger.info(f"[DouYinCrawler] CDP浏览器信息: {browser_info}")
 
@@ -392,13 +410,13 @@ class DouYinCrawler(AbstractCrawler):
 
         except Exception as e:
             utils.logger.error(f"[DouYinCrawler] CDP模式启动失败，回退到标准模式: {e}")
-            # 回退到标准模式
+            # Fall back to standard mode
             chromium = playwright.chromium
             return await self.launch_browser(chromium, playwright_proxy, user_agent, headless)
 
     async def close(self) -> None:
         """Close browser context"""
-        # 如果使用CDP模式，需要特殊处理
+        # If you use CDP mode, special processing is required
         if self.cdp_manager:
             await self.cdp_manager.cleanup()
             self.cdp_manager = None
@@ -416,8 +434,9 @@ class DouYinCrawler(AbstractCrawler):
         if not config.ENABLE_GET_MEIDAS:
             utils.logger.info(f"[DouYinCrawler.get_aweme_media] Crawling image mode is not enabled")
             return
-        # 笔记 urls 列表，若为短视频类型则返回为空列表
+        # List of note urls. If it is a short video type, an empty list will be returned.
         note_download_url: List[str] = douyin_store._extract_note_image_list(aweme_item)
+
         if note_download_url:
             # 图文帖子：只下载图片（含live photo动图视频），不下载video URL（那只是背景音乐）
             await self.get_aweme_images(aweme_item)
@@ -479,7 +498,7 @@ class DouYinCrawler(AbstractCrawler):
         aweme_id = aweme_item.get("aweme_id")
         title = aweme_item.get("desc", "")
 
-        # 视频 url，永远存在，但为短视频类型时的文件其实是音频文件
+        # The video URL will always exist, but when it is a short video type, the file is actually an audio file.
         video_download_url: str = douyin_store._extract_video_download_url(aweme_item)
 
         if not video_download_url:

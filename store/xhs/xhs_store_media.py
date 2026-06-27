@@ -20,7 +20,7 @@
 # -*- coding: utf-8 -*-
 # @Author  : helloteemo
 # @Time    : 2024/7/11 22:35
-# @Desc    : 小红书媒体保存
+# @Desc    : Xiaohongshu media storage
 import pathlib
 from typing import Dict
 
@@ -28,10 +28,15 @@ import aiofiles
 
 from base.base_crawler import AbstractStoreImage, AbstractStoreVideo
 from tools import utils
+import config
 
 
 class XiaoHongShuImage(AbstractStoreImage):
-    image_store_path: str = "data/xhs/images"
+    def __init__(self):
+        if config.SAVE_DATA_PATH:
+            self.image_store_path = f"{config.SAVE_DATA_PATH}/xhs/images"
+        else:
+            self.image_store_path = "data/xhs/images"
 
     async def store_image(self, image_content_item: Dict):
         """
@@ -78,7 +83,11 @@ class XiaoHongShuImage(AbstractStoreImage):
 
 
 class XiaoHongShuVideo(AbstractStoreVideo):
-    video_store_path: str = "data/xhs/videos"
+    def __init__(self):
+        if config.SAVE_DATA_PATH:
+            self.video_store_path = f"{config.SAVE_DATA_PATH}/xhs/videos"
+        else:
+            self.video_store_path = "data/xhs/videos"
 
     async def store_video(self, video_content_item: Dict):
         """

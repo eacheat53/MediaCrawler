@@ -20,7 +20,7 @@
 
 # -*- coding: utf-8 -*-
 # @Author  : relakkes@gmail.com
-# @Name    : 程序员阿江-Relakkes
+# @Name: Programmer Ajiang-Relakkes
 # @Time    : 2024/6/2 19:54
 # @Desc    :
 
@@ -52,7 +52,7 @@ class TestRedisCache(unittest.TestCase):
         self.assertIn('key2', keys)
 
     def tearDown(self):
-        # self.redis_cache._redis_client.flushdb()  # 清空redis数据库
+        # self.redis_cache._redis_client.flushdb()  # Clear redis database
         pass
 
 

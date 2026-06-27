@@ -26,6 +26,7 @@ from urllib.parse import urlencode
 import httpx
 from httpx import Response
 from playwright.async_api import BrowserContext, Page
+from tools.httpx_util import make_async_client
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 import config
@@ -58,16 +59,17 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         self.proxy = proxy
         self.timeout = timeout
         self.default_headers = headers
+        self.cookie_urls = ["https://www.zhihu.com"]
         self.cookie_dict = cookie_dict
         self._extractor = ZhihuExtractor()
-        # 初始化代理池（来自 ProxyRefreshMixin）
+        # Initialize proxy pool (from ProxyRefreshMixin)
         self.init_proxy_pool(proxy_ip_pool)
 
     async def _pre_headers(self, url: str) -> Dict:
         """
-        请求头参数签名
+        Sign request headers
         Args:
-            url:  请求的URL需要包含请求的参数
+            url: Request URL with query parameters
         Returns:
 
         """
@@ -83,29 +85,29 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(1))
     async def request(self, method, url, **kwargs) -> Union[str, Any]:
         """
-        封装httpx的公共请求方法，对请求响应做一些处理
+        Wrapper for httpx common request method with response handling
         Args:
-            method: 请求方法
-            url: 请求的URL
-            **kwargs: 其他请求参数，例如请求头、请求体等
+            method: Request method
+            url: Request URL
+            **kwargs: Other request parameters such as headers, body, etc.
 
         Returns:
 
         """
-        # 每次请求前检测代理是否过期
+        # Check if proxy is expired before each request
         await self._refresh_proxy_if_expired()
 
         # return response.text
         return_response = kwargs.pop('return_response', False)
 
-        async with httpx.AsyncClient(proxy=self.proxy) as client:
+        async with make_async_client(proxy=self.proxy) as client:
             response = await client.request(method, url, timeout=self.timeout, **kwargs)
 
         if response.status_code != 200:
             utils.logger.error(f"[ZhiHuClient.request] Requset Url: {url}, Request error: {response.text}")
             if response.status_code == 403:
                 raise ForbiddenError(response.text)
-            elif response.status_code == 404:  # 如果一个content没有评论也是404
+            elif response.status_code == 404:  # Content without comments also returns 404
                 return {}
 
             raise DataFetchError(response.text)
@@ -124,10 +126,10 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
 
     async def get(self, uri: str, params=None, **kwargs) -> Union[Response, Dict, str]:
         """
-        GET请求，对请求头签名
+        GET request with header signing
         Args:
-            uri: 请求路由
-            params: 请求参数
+            uri: Request URI
+            params: Request parameters
 
         Returns:
 
@@ -141,7 +143,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
 
     async def pong(self) -> bool:
         """
-        用于检查登录态是否失效了
+        Check if login status is still valid
         Returns:
 
         """
@@ -159,22 +161,25 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
             ping_flag = False
         return ping_flag
 
-    async def update_cookies(self, browser_context: BrowserContext):
+    async def update_cookies(self, browser_context: BrowserContext, urls: Optional[list[str]] = None):
         """
-        API客户端提供的更新cookies方法，一般情况下登录成功后会调用此方法
+        Update cookies method provided by API client, typically called after successful login
         Args:
-            browser_context: 浏览器上下文对象
+            browser_context: Browser context object
 
         Returns:
 
         """
-        cookie_str, cookie_dict = utils.convert_cookies(await browser_context.cookies())
+        cookie_str, cookie_dict = await utils.convert_browser_context_cookies(
+            browser_context,
+            urls=urls or self.cookie_urls,
+        )
         self.default_headers["cookie"] = cookie_str
         self.cookie_dict = cookie_dict
 
     async def get_current_user_info(self) -> Dict:
         """
-        获取当前登录用户信息
+        Get current logged-in user information
         Returns:
 
         """
@@ -191,14 +196,14 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         search_time: SearchTime = SearchTime.DEFAULT,
     ) -> List[ZhihuContent]:
         """
-        根据关键词搜索
+        Search by keyword
         Args:
-            keyword: 关键词
-            page: 第几页
-            page_size: 分页size
-            sort: 排序
-            note_type: 搜索结果类型
-            search_time: 搜索多久时间的结果
+            keyword: Search keyword
+            page: Page number
+            page_size: Page size
+            sort: Sorting method
+            note_type: Search result type
+            search_time: Time range for search results
 
         Returns:
 
@@ -232,10 +237,10 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         order_by: str = "score",
     ) -> Dict:
         """
-        获取内容的一级评论
+        Get root-level comments for content
         Args:
-            content_id: 内容ID
-            content_type: 内容类型(answer, article, zvideo)
+            content_id: Content ID
+            content_type: Content type (answer, article, zvideo)
             offset:
             limit:
             order_by:
@@ -262,7 +267,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         order_by: str = "sort",
     ) -> Dict:
         """
-        获取一级评论下的子评论
+        Get child comments under a root comment
         Args:
             root_comment_id:
             offset:
@@ -287,11 +292,11 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         callback: Optional[Callable] = None,
     ) -> List[ZhihuComment]:
         """
-        获取指定帖子下的所有一级评论，该方法会一直查找一个帖子下的所有评论信息
+        Get all root-level comments for a specified post, this method will retrieve all comment information under a post
         Args:
-            content: 内容详情对象(问题｜文章｜视频)
-            crawl_interval: 爬取一次笔记的延迟单位（秒）
-            callback: 一次笔记爬取结束后
+            content: Content detail object (question|article|video)
+            crawl_interval: Crawl delay interval in seconds
+            callback: Callback after completing one crawl
 
         Returns:
 
@@ -299,8 +304,10 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         result: List[ZhihuComment] = []
         is_end: bool = False
         offset: str = ""
+        prev_offset: str = ""
         limit: int = 10
         while not is_end:
+            prev_offset = offset
             root_comment_res = await self.get_root_comments(content.content_id, content.content_type, offset, limit)
             if not root_comment_res:
                 break
@@ -310,6 +317,9 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
             comments = self._extractor.extract_comments(content, root_comment_res.get("data"))
 
             if not comments:
+                break
+
+            if prev_offset == offset:
                 break
 
             if callback:
@@ -328,12 +338,12 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         callback: Optional[Callable] = None,
     ) -> List[ZhihuComment]:
         """
-        获取指定评论下的所有子评论
+        Get all sub-comments under specified comments
         Args:
-            content: 内容详情对象(问题｜文章｜视频)
-            comments: 评论列表
-            crawl_interval: 爬取一次笔记的延迟单位（秒）
-            callback: 一次笔记爬取结束后
+            content: Content detail object (question|article|video)
+            comments: Comment list
+            crawl_interval: Crawl delay interval in seconds
+            callback: Callback after completing one crawl
 
         Returns:
 
@@ -348,8 +358,10 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
 
             is_end: bool = False
             offset: str = ""
+            prev_offset: str = ""
             limit: int = 10
             while not is_end:
+                prev_offset = offset
                 child_comment_res = await self.get_child_comments(parment_comment.comment_id, offset, limit)
                 if not child_comment_res:
                     break
@@ -361,6 +373,9 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
                 if not sub_comments:
                     break
 
+                if prev_offset == offset:
+                    break
+
                 if callback:
                     await callback(sub_comments)
 
@@ -370,7 +385,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
 
     async def get_creator_info(self, url_token: str) -> Optional[ZhihuCreator]:
         """
-        获取创作者信息
+        Get creator information
         Args:
             url_token:
 
@@ -383,7 +398,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
 
     async def get_creator_answers(self, url_token: str, offset: int = 0, limit: int = 20) -> Dict:
         """
-        获取创作者的回答
+        Get creator's answers
         Args:
             url_token:
             offset:
@@ -405,7 +420,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
 
     async def get_creator_articles(self, url_token: str, offset: int = 0, limit: int = 20) -> Dict:
         """
-        获取创作者的文章
+        Get creator's articles
         Args:
             url_token:
             offset:
@@ -426,7 +441,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
 
     async def get_creator_videos(self, url_token: str, offset: int = 0, limit: int = 20) -> Dict:
         """
-        获取创作者的视频
+        Get creator's videos
         Args:
             url_token:
             offset:
@@ -446,11 +461,11 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
 
     async def get_all_anwser_by_creator(self, creator: ZhihuCreator, crawl_interval: float = 1.0, callback: Optional[Callable] = None) -> List[ZhihuContent]:
         """
-        获取创作者的所有回答
+        Get all answers by creator
         Args:
-            creator: 创作者信息
-            crawl_interval: 爬取一次笔记的延迟单位（秒）
-            callback: 一次笔记爬取结束后
+            creator: Creator information
+            crawl_interval: Crawl delay interval in seconds
+            callback: Callback after completing one crawl
 
         Returns:
 
@@ -481,7 +496,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         callback: Optional[Callable] = None,
     ) -> List[ZhihuContent]:
         """
-        获取创作者的所有文章
+        Get all articles by creator
         Args:
             creator:
             crawl_interval:
@@ -515,7 +530,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         callback: Optional[Callable] = None,
     ) -> List[ZhihuContent]:
         """
-        获取创作者的所有视频
+        Get all videos by creator
         Args:
             creator:
             crawl_interval:
@@ -548,7 +563,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         answer_id: str,
     ) -> Optional[ZhihuContent]:
         """
-        获取回答信息
+        Get answer information
         Args:
             question_id:
             answer_id:
@@ -562,7 +577,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
 
     async def get_article_info(self, article_id: str) -> Optional[ZhihuContent]:
         """
-        获取文章信息
+        Get article information
         Args:
             article_id:
 
@@ -575,7 +590,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
 
     async def get_video_info(self, video_id: str) -> Optional[ZhihuContent]:
         """
-        获取视频信息
+        Get video information
         Args:
             video_id:
 

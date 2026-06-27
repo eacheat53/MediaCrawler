@@ -1,19 +1,5 @@
 # 🔥 MediaCrawler - 自媒体平台爬虫 🕷️
 
-<div align="center" markdown="1">
-   <sup>Special thanks to:</sup>
-   <br>
-   <br>
-   <a href="https://go.warp.dev/MediaCrawler">
-      <img alt="Warp sponsorship" width="400" src="https://github.com/warpdotdev/brand-assets/blob/main/Github/Sponsor/Warp-Github-LG-02.png?raw=true">
-   </a>
-
-### [Warp is built for coding with multiple AI agents](https://go.warp.dev/MediaCrawler)
-
-
-</div>
-<hr>
-
 <div align="center">
 
 <a href="https://trendshift.io/repositories/8291" target="_blank">
@@ -53,6 +39,7 @@
 - **无需JS逆向**：利用保留登录态的浏览器上下文环境，通过 JS 表达式获取签名参数
 - **优势特点**：无需逆向复杂的加密算法，大幅降低技术门槛
 
+
 ## ✨ 功能特性
 | 平台   | 关键词搜索 | 指定帖子ID爬取 | 二级评论 | 指定创作者主页 | 登录态缓存 | IP代理池 | 生成评论词云图 |
 | ------ | ---------- | -------------- | -------- | -------------- | ---------- | -------- | -------------- |
@@ -66,13 +53,14 @@
 
 
 
-### 🚀 MediaCrawlerPro 重磅发布！
+<strong>MediaCrawlerPro 重磅发布！开源不易，欢迎订阅支持</strong>
 
 > 专注于学习成熟项目的架构设计，不仅仅是爬虫技术，Pro 版本的代码设计思路同样值得深入学习！
 
 [MediaCrawlerPro](https://github.com/MediaCrawlerPro) 相较于开源版本的核心优势：
 
 #### 🎯 核心功能升级
+- ✅ **自媒体内容拆解Agent**（新增功能）
 - ✅ **断点续爬功能**（重点特性）
 - ✅ **多账号 + IP代理池支持**（重点特性）
 - ✅ **去除 Playwright 依赖**，使用更简单
@@ -86,14 +74,16 @@
 #### 🎁 额外功能
 - ✅ **自媒体视频下载器桌面端**（适合学习全栈开发）
 - ✅ **多平台首页信息流推荐**（HomeFeed）
-- [ ] **基于自媒体平台的AI Agent正在开发中 🚀🚀**
+- ✅ **AI Agent Skill 支持**（[OpenClaw](https://openclaw.ai/) 🦞 / Claude Code / Cursor 一键安装，让 Agent 自动爬取数据）
+- [ ] **基于评论分析AI Agent正在开发中 🚀🚀**
 
 点击查看：[MediaCrawlerPro 项目主页](https://github.com/MediaCrawlerPro) 更多介绍
 
 
+
 ## 🚀 快速开始
 
-> 💡 **开源不易，如果这个项目对您有帮助，请给个 ⭐ Star 支持一下！**
+> 💡 **如果这个项目对您有帮助，请给个 ⭐ Star 支持一下！**
 
 ## 📋 前置依赖
 
@@ -122,12 +112,28 @@ cd MediaCrawler
 uv sync
 ```
 
-### 🌐 浏览器驱动安装
+### 🌐 浏览器驱动安装（可选）
+
+> 如果使用默认的 CDP 模式（连接已有 Chrome 浏览器），**无需安装浏览器驱动**。仅在使用标准 Playwright 模式时需要安装。
 
 ```shell
-# 安装浏览器驱动
+# 仅在标准 Playwright 模式下需要安装浏览器驱动
 uv run playwright install
 ```
+
+### 🌍 Chrome 浏览器配置（推荐）
+
+项目默认使用 CDP 模式连接用户已有的 Chrome 浏览器，可以复用浏览器已有的登录状态、Cookie、扩展等，**大幅降低平台风控检测风险**。
+
+使用前需要：
+
+1. **安装最新版 Chrome 浏览器**（版本 >= 144），[下载地址](https://www.google.com/chrome/)
+2. **开启远程调试功能**：在 Chrome 地址栏输入 `chrome://inspect/#remote-debugging`，勾选 **"Allow remote debugging for this browser instance"**
+3. 页面显示 `Server running at: 127.0.0.1:9222` 表示已就绪
+
+> 💡 **提示**：运行爬虫后，Chrome 浏览器会弹出确认对话框，点击"接受"即可。程序会等待用户确认，60秒内操作完成即可。
+>
+> 如果不想使用 CDP 模式，可以在 `config/base_config.py` 中设置 `ENABLE_CDP_MODE = False` 切换为标准 Playwright 模式。
 
 ## 🚀 运行爬虫程序
 
@@ -145,6 +151,35 @@ uv run main.py --platform xhs --lt qrcode --type detail
 # 其他平台爬虫使用示例，执行下面的命令查看
 uv run main.py --help
 ```
+
+<details>
+<summary>🖥️ <strong>WebUI 可视化操作界面</strong></summary>
+
+MediaCrawler 提供了基于 Web 的可视化操作界面，无需命令行也能轻松使用爬虫功能。
+
+#### 启动 WebUI 服务
+
+```shell
+# 启动 API 服务器（默认端口 8080）
+uv run uvicorn api.main:app --port 8080 --reload
+
+# 或者使用模块方式启动
+uv run python -m api.main
+```
+
+启动成功后，访问 `http://localhost:8080` 即可打开 WebUI 界面。
+
+#### WebUI 功能特性
+
+- 可视化配置爬虫参数（平台、登录方式、爬取类型等）
+- 实时查看爬虫运行状态和日志
+- 数据预览和导出
+
+#### 界面预览
+
+<img src="docs/static/images/img_8.png" alt="WebUI 界面预览">
+
+</details>
 
 <details>
 <summary>🔗 <strong>使用 Python 原生 venv 管理环境（不推荐）</strong></summary>
@@ -204,46 +239,39 @@ python main.py --help
 
 ## 💾 数据保存
 
-MediaCrawler 支持多种数据存储方式，包括 CSV、JSON、Excel、SQLite 和 MySQL 数据库。
+MediaCrawler 支持多种数据存储方式，包括 CSV、JSON、JSONL、Excel、SQLite 和 MySQL 数据库。
 
 📖 **详细使用说明请查看：[数据存储指南](docs/data_storage_guide.md)**
 
 
-[🚀 MediaCrawlerPro 重磅发布 🚀！更多的功能，更好的架构设计！](https://github.com/MediaCrawlerPro)
+[🚀 MediaCrawlerPro 重磅发布 🚀！更多的功能，更好的架构设计！开源不易，欢迎订阅支持！](https://github.com/MediaCrawlerPro)
 
 
-### 💬 交流群组
+## 💬 交流群组
 - **微信交流群**：[点击加入](https://nanmicoder.github.io/MediaCrawler/%E5%BE%AE%E4%BF%A1%E4%BA%A4%E6%B5%81%E7%BE%A4.html)
+- **B站账号**：[关注我](https://space.bilibili.com/434377496)，分享AI与爬虫技术知识
 
 
-### 💰 赞助商展示
-
-<a href="https://h.wandouip.com">
-<img src="docs/static/images/img_8.jpg">
-<br>
-豌豆HTTP自营千万级IP资源池，IP纯净度≥99.8%，每日保持IP高频更新，快速响应，稳定连接,满足多种业务场景，支持按需定制，注册免费提取10000ip。
-</a>
-
----
+## 💰 赞助商展示
 
 <a href="https://tikhub.io/?utm_source=github.com/NanmiCoder/MediaCrawler&utm_medium=marketing_social&utm_campaign=retargeting&utm_content=carousel_ad">
 <img width="500" src="docs/static/images/tikhub_banner_zh.png">
 <br>
 TikHub.io 提供 900+ 高稳定性数据接口，覆盖 TK、DY、XHS、Y2B、Ins、X 等 14+ 海内外主流平台，支持用户、内容、商品、评论等多维度公开数据 API，并配套 4000 万+ 已清洗结构化数据集，使用邀请码 <code>cfzyejV9</code> 注册并充值，即可额外获得 $2 赠送额度。
 </a>
+<br>
+<br>
+
+<a href="https://www.atlascloud.ai/?utm_source=github&utm_medium=link&utm_campaign=mei%27da%27c%27rmeidacrawler">
+<img width="500" alt="Atlas Cloud" src="docs/static/images/atlas_cloud_logo_black.png#gh-light-mode-only">
+<img width="500" alt="Atlas Cloud" src="docs/static/images/atlas_cloud_logo_white.png#gh-dark-mode-only">
+</a>
+<br>
+<a href="https://www.atlascloud.ai/?utm_source=github&utm_medium=link&utm_campaign=mei%27da%27c%27rmeidacrawler">Atlas Cloud</a> 是一个全模态 AI 推理平台，让开发者通过统一的 AI API 访问视频生成、图像生成和 LLM API，无需分别维护多个厂商集成，即可调用 300+ 精选模型。Atlas Cloud 最新推出 <a href="https://www.atlascloud.ai/console/coding-plan">coding plan 优惠</a>，为开发者提供更具性价比的 API 访问预算。
 
 ---
 
-<a href="https://www.thordata.com/?ls=github&lk=mediacrawler">
-<img width="500" src="docs/static/images/Thordata.png">
-<br>
-Thordata：可靠且经济高效的代理服务提供商。为企业和开发者提供稳定、高效且合规的全球代理 IP 服务。立即注册，赠送1GB住宅代理免费试用和2000次serp-api调用。
-</a>
-<br>
-<a href="https://www.thordata.com/products/residential-proxies/?ls=github&lk=mediacrawler">【住宅代理】</a> | <a href="https://www.thordata.com/products/web-scraper/?ls=github&lk=mediacrawler">【serp-api】</a>
-
-
-### 🤝 成为赞助者
+## 🤝 成为赞助者
 
 成为赞助者，可以将您的产品展示在这里，每天获得大量曝光！
 
@@ -252,7 +280,32 @@ Thordata：可靠且经济高效的代理服务提供商。为企业和开发者
 - 邮箱：`relakkes@gmail.com`
 ---
 
-### 📚 其他
+## ☕ 请作者喝杯咖啡
+
+如果这个项目对您有帮助，欢迎打赏支持，您的每一份支持都是我持续更新的动力 ❤️
+
+<table>
+<tr>
+<td align="center" width="33%">
+<img src="docs/static/images/wechat_pay.jpeg" width="250" alt="微信赞赏"><br>
+<b>微信赞赏</b>
+</td>
+<td align="center" width="33%">
+<img src="docs/static/images/zfb_pay.png" width="250" alt="支付宝"><br>
+<b>支付宝</b>
+</td>
+<td align="center" width="33%">
+<a href="https://buymeacoffee.com/relakkes" target="_blank">
+<img src="docs/static/images/bmc_button.png" width="250" alt="Buy Me a Coffee">
+</a><br>
+<b>Buy Me a Coffee</b>
+</td>
+</tr>
+</table>
+
+---
+
+## 📚 其他
 - **常见问题**：[MediaCrawler 完整文档](https://nanmicoder.github.io/MediaCrawler/)
 - **爬虫入门教程**：[CrawlerTutorial 免费教程](https://github.com/NanmiCoder/CrawlerTutorial)
 - **新闻爬虫开源项目**：[NewsCrawlerCollection](https://github.com/NanmiCoder/NewsCrawlerCollection)

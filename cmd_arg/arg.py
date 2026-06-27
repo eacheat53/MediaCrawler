@@ -22,6 +22,7 @@ from __future__ import annotations
 
 
 import sys
+import re
 from enum import Enum
 from types import SimpleNamespace
 from typing import Iterable, Optional, Sequence, Type, TypeVar
@@ -37,7 +38,7 @@ EnumT = TypeVar("EnumT", bound=Enum)
 
 
 class PlatformEnum(str, Enum):
-    """支持的媒体平台枚举"""
+    """Supported media platform enumeration"""
 
     XHS = "xhs"
     DOUYIN = "dy"
@@ -49,7 +50,7 @@ class PlatformEnum(str, Enum):
 
 
 class LoginTypeEnum(str, Enum):
-    """登录方式枚举"""
+    """Login type enumeration"""
 
     QRCODE = "qrcode"
     PHONE = "phone"
@@ -57,7 +58,7 @@ class LoginTypeEnum(str, Enum):
 
 
 class CrawlerTypeEnum(str, Enum):
-    """爬虫类型枚举"""
+    """Crawler type enumeration"""
 
     SEARCH = "search"
     DETAIL = "detail"
@@ -65,21 +66,24 @@ class CrawlerTypeEnum(str, Enum):
 
 
 class SaveDataOptionEnum(str, Enum):
-    """数据保存方式枚举"""
+    """Data save option enumeration"""
 
     CSV = "csv"
     DB = "db"
     JSON = "json"
+    JSONL = "jsonl"
     SQLITE = "sqlite"
     MONGODB = "mongodb"
     EXCEL = "excel"
+    POSTGRES = "postgres"
 
 
 class InitDbOptionEnum(str, Enum):
-    """数据库初始化选项"""
+    """Database initialization option"""
 
     SQLITE = "sqlite"
     MYSQL = "mysql"
+    POSTGRES = "postgres"
 
 
 # 平台 + 爬取类型 → config 属性名的映射
@@ -120,7 +124,7 @@ def _coerce_enum(
         return enum_cls(value)
     except ValueError:
         typer.secho(
-            f"⚠️ 配置值 '{value}' 不在 {enum_cls.__name__} 支持的范围内，已回退到默认值 '{default.value}'.",
+            f"⚠️ Config value '{value}' is not within the supported range of {enum_cls.__name__}, falling back to default value '{default.value}'.",
             fg=typer.colors.YELLOW,
         )
         return default
@@ -150,8 +154,23 @@ def _inject_init_db_default(args: Sequence[str]) -> list[str]:
     return normalized
 
 
+def _normalize_tieba_note_id(value: str) -> str:
+    """Accept a raw Tieba thread id or a /p/<id> URL."""
+    value = value.strip()
+    match = re.search(r"/p/(\d+)", value)
+    return match.group(1) if match else value
+
+
+def _normalize_tieba_creator_url(value: str) -> str:
+    """Accept a Tieba creator homepage URL or a portrait id."""
+    value = value.strip()
+    if value.startswith("http://") or value.startswith("https://"):
+        return value
+    return f"https://tieba.baidu.com/home/main?id={value}"
+
+
 async def parse_cmd(argv: Optional[Sequence[str]] = None):
-    """使用 Typer 解析命令行参数。"""
+    """Parse command line arguments using Typer."""
 
     app = typer.Typer(add_completion=False)
 
@@ -161,48 +180,48 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
             PlatformEnum,
             typer.Option(
                 "--platform",
-                help="媒体平台选择 (xhs=小红书 | dy=抖音 | ks=快手 | bili=哔哩哔哩 | wb=微博 | tieba=百度贴吧 | zhihu=知乎)",
-                rich_help_panel="基础配置",
+                help="Media platform selection (xhs=XiaoHongShu | dy=Douyin | ks=Kuaishou | bili=Bilibili | wb=Weibo | tieba=Baidu Tieba | zhihu=Zhihu)",
+                rich_help_panel="Basic Configuration",
             ),
         ] = _coerce_enum(PlatformEnum, config.PLATFORM, PlatformEnum.XHS),
         lt: Annotated[
             LoginTypeEnum,
             typer.Option(
                 "--lt",
-                help="登录方式 (qrcode=二维码 | phone=手机号 | cookie=Cookie)",
-                rich_help_panel="账号配置",
+                help="Login type (qrcode=QR Code | phone=Phone | cookie=Cookie)",
+                rich_help_panel="Account Configuration",
             ),
         ] = _coerce_enum(LoginTypeEnum, config.LOGIN_TYPE, LoginTypeEnum.QRCODE),
         crawler_type: Annotated[
             CrawlerTypeEnum,
             typer.Option(
                 "--type",
-                help="爬取类型 (search=搜索 | detail=详情 | creator=创作者)",
-                rich_help_panel="基础配置",
+                help="Crawler type (search=Search | detail=Detail | creator=Creator)",
+                rich_help_panel="Basic Configuration",
             ),
         ] = _coerce_enum(CrawlerTypeEnum, config.CRAWLER_TYPE, CrawlerTypeEnum.SEARCH),
         start: Annotated[
             int,
             typer.Option(
                 "--start",
-                help="起始页码",
-                rich_help_panel="基础配置",
+                help="Starting page number",
+                rich_help_panel="Basic Configuration",
             ),
         ] = config.START_PAGE,
         keywords: Annotated[
             str,
             typer.Option(
                 "--keywords",
-                help="请输入关键词，多个关键词用逗号分隔",
-                rich_help_panel="基础配置",
+                help="Enter keywords, multiple keywords separated by commas",
+                rich_help_panel="Basic Configuration",
             ),
         ] = config.KEYWORDS,
         get_comment: Annotated[
             str,
             typer.Option(
                 "--get_comment",
-                help="是否爬取一级评论，支持 yes/true/t/y/1 或 no/false/f/n/0",
-                rich_help_panel="评论配置",
+                help="Whether to crawl first-level comments, supports yes/true/t/y/1 or no/false/f/n/0",
+                rich_help_panel="Comment Configuration",
                 show_default=True,
             ),
         ] = str(config.ENABLE_GET_COMMENTS),
@@ -210,35 +229,44 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
             str,
             typer.Option(
                 "--get_sub_comment",
-                help="是否爬取二级评论，支持 yes/true/t/y/1 或 no/false/f/n/0",
-                rich_help_panel="评论配置",
+                help="Whether to crawl second-level comments, supports yes/true/t/y/1 or no/false/f/n/0",
+                rich_help_panel="Comment Configuration",
                 show_default=True,
             ),
         ] = str(config.ENABLE_GET_SUB_COMMENTS),
+        headless: Annotated[
+            str,
+            typer.Option(
+                "--headless",
+                help="Whether to enable headless mode (applies to both Playwright and CDP), supports yes/true/t/y/1 or no/false/f/n/0",
+                rich_help_panel="Runtime Configuration",
+                show_default=True,
+            ),
+        ] = str(config.HEADLESS),
         save_data_option: Annotated[
             SaveDataOptionEnum,
             typer.Option(
                 "--save_data_option",
-                help="数据保存方式 (csv=CSV文件 | db=MySQL数据库 | json=JSON文件 | sqlite=SQLite数据库 | mongodb=MongoDB数据库 | excel=Excel文件)",
-                rich_help_panel="存储配置",
+                help="Data save option (csv=CSV file | db=MySQL database | json=JSON file | jsonl=JSONL file | sqlite=SQLite database | mongodb=MongoDB database | excel=Excel file | postgres=PostgreSQL database)",
+                rich_help_panel="Storage Configuration",
             ),
         ] = _coerce_enum(
-            SaveDataOptionEnum, config.SAVE_DATA_OPTION, SaveDataOptionEnum.JSON
+            SaveDataOptionEnum, config.SAVE_DATA_OPTION, SaveDataOptionEnum.JSONL
         ),
         init_db: Annotated[
             Optional[InitDbOptionEnum],
             typer.Option(
                 "--init_db",
-                help="初始化数据库表结构 (sqlite | mysql)",
-                rich_help_panel="存储配置",
+                help="Initialize database table structure (sqlite | mysql | postgres)",
+                rich_help_panel="Storage Configuration",
             ),
         ] = None,
         cookies: Annotated[
             str,
             typer.Option(
                 "--cookies",
-                help="Cookie 登录方式使用的 Cookie 值",
-                rich_help_panel="账号配置",
+                help="Cookie value used for Cookie login method",
+                rich_help_panel="Account Configuration",
             ),
         ] = config.COOKIES,
         urls: Annotated[
@@ -249,12 +277,99 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
                 rich_help_panel="基础配置",
             ),
         ] = "",
+        specified_id: Annotated[
+            str,
+            typer.Option(
+                "--specified_id",
+                help="Post/video ID list in detail mode, multiple IDs separated by commas (supports full URL or ID)",
+                rich_help_panel="Basic Configuration",
+            ),
+        ] = "",
+        creator_id: Annotated[
+            str,
+            typer.Option(
+                "--creator_id",
+                help="Creator ID list in creator mode, multiple IDs separated by commas (supports full URL or ID)",
+                rich_help_panel="Basic Configuration",
+            ),
+        ] = "",
+        max_comments_count_singlenotes: Annotated[
+            int,
+            typer.Option(
+                "--max_comments_count_singlenotes",
+                help="Maximum number of first-level comments to crawl per post/video",
+                rich_help_panel="Comment Configuration",
+            ),
+        ] = config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES,
+        crawler_max_notes_count: Annotated[
+            int,
+            typer.Option(
+                "--crawler_max_notes_count",
+                help="Maximum number of videos/posts to crawl",
+                rich_help_panel="Basic Configuration",
+            ),
+        ] = config.CRAWLER_MAX_NOTES_COUNT,
+        max_concurrency_num: Annotated[
+            int,
+            typer.Option(
+                "--max_concurrency_num",
+                help="Maximum number of concurrent crawlers",
+                rich_help_panel="Performance Configuration",
+            ),
+        ] = config.MAX_CONCURRENCY_NUM,
+        save_data_path: Annotated[
+            str,
+            typer.Option(
+                "--save_data_path",
+                help="Data save path, default is empty and will save to data folder",
+                rich_help_panel="Storage Configuration",
+            ),
+        ] = config.SAVE_DATA_PATH,
+        enable_ip_proxy: Annotated[
+            str,
+            typer.Option(
+                "--enable_ip_proxy",
+                help="Whether to enable IP proxy, supports yes/true/t/y/1 or no/false/f/n/0",
+                rich_help_panel="Proxy Configuration",
+                show_default=True,
+            ),
+        ] = str(config.ENABLE_IP_PROXY),
+        ip_proxy_pool_count: Annotated[
+            int,
+            typer.Option(
+                "--ip_proxy_pool_count",
+                help="IP proxy pool count",
+                rich_help_panel="Proxy Configuration",
+            ),
+        ] = config.IP_PROXY_POOL_COUNT,
+        ip_proxy_provider_name: Annotated[
+            str,
+            typer.Option(
+                "--ip_proxy_provider_name",
+                help="IP proxy provider name (kuaidaili | wandouhttp | static)",
+                rich_help_panel="Proxy Configuration",
+            ),
+        ] = config.IP_PROXY_PROVIDER_NAME,
+        static_proxy_url: Annotated[
+            str,
+            typer.Option(
+                "--static_proxy_url",
+                help="Static proxy URL, for example http://user:password@host:port",
+                rich_help_panel="Proxy Configuration",
+            ),
+        ] = config.STATIC_PROXY_URL,
     ) -> SimpleNamespace:
         """MediaCrawler 命令行入口"""
 
         enable_comment = _to_bool(get_comment)
         enable_sub_comment = _to_bool(get_sub_comment)
+        enable_headless = _to_bool(headless)
+        enable_ip_proxy_value = _to_bool(enable_ip_proxy)
         init_db_value = init_db.value if init_db else None
+
+        # Parse specified_id and creator_id into lists
+        specified_id_list = [id.strip() for id in specified_id.split(",") if id.strip()] if specified_id else []
+        creator_id_list = [id.strip() for id in creator_id.split(",") if id.strip()] if creator_id else []
 
         # override global config
         config.PLATFORM = platform.value
@@ -264,8 +379,53 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
         config.KEYWORDS = keywords
         config.ENABLE_GET_COMMENTS = enable_comment
         config.ENABLE_GET_SUB_COMMENTS = enable_sub_comment
+        config.HEADLESS = enable_headless
+        config.CDP_HEADLESS = enable_headless
         config.SAVE_DATA_OPTION = save_data_option.value
         config.COOKIES = cookies
+        config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES = max_comments_count_singlenotes
+        config.CRAWLER_MAX_NOTES_COUNT = crawler_max_notes_count
+        config.MAX_CONCURRENCY_NUM = max_concurrency_num
+        config.SAVE_DATA_PATH = save_data_path
+        config.ENABLE_IP_PROXY = enable_ip_proxy_value
+        config.IP_PROXY_POOL_COUNT = ip_proxy_pool_count
+        config.IP_PROXY_PROVIDER_NAME = ip_proxy_provider_name
+        config.STATIC_PROXY_URL = static_proxy_url
+
+        # Set platform-specific ID lists for detail/creator mode
+        if specified_id_list:
+            if platform == PlatformEnum.XHS:
+                config.XHS_SPECIFIED_NOTE_URL_LIST = specified_id_list
+            elif platform == PlatformEnum.BILIBILI:
+                config.BILI_SPECIFIED_ID_LIST = specified_id_list
+            elif platform == PlatformEnum.DOUYIN:
+                config.DY_SPECIFIED_ID_LIST = specified_id_list
+            elif platform == PlatformEnum.WEIBO:
+                config.WEIBO_SPECIFIED_ID_LIST = specified_id_list
+            elif platform == PlatformEnum.KUAISHOU:
+                config.KS_SPECIFIED_ID_LIST = specified_id_list
+            elif platform == PlatformEnum.TIEBA:
+                config.TIEBA_SPECIFIED_ID_LIST = [
+                    _normalize_tieba_note_id(item) for item in specified_id_list
+                ]
+            elif platform == PlatformEnum.ZHIHU:
+                config.ZHIHU_SPECIFIED_ID_LIST = specified_id_list
+
+        if creator_id_list:
+            if platform == PlatformEnum.XHS:
+                config.XHS_CREATOR_ID_LIST = creator_id_list
+            elif platform == PlatformEnum.BILIBILI:
+                config.BILI_CREATOR_ID_LIST = creator_id_list
+            elif platform == PlatformEnum.DOUYIN:
+                config.DY_CREATOR_ID_LIST = creator_id_list
+            elif platform == PlatformEnum.WEIBO:
+                config.WEIBO_CREATOR_ID_LIST = creator_id_list
+            elif platform == PlatformEnum.KUAISHOU:
+                config.KS_CREATOR_ID_LIST = creator_id_list
+            elif platform == PlatformEnum.TIEBA:
+                config.TIEBA_CREATOR_URL_LIST = [
+                    _normalize_tieba_creator_url(item) for item in creator_id_list
+                ]
 
         # 如果通过 --urls 指定了URL，覆盖对应平台的 ID 列表
         if urls:
@@ -292,10 +452,13 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
             keywords=config.KEYWORDS,
             get_comment=config.ENABLE_GET_COMMENTS,
             get_sub_comment=config.ENABLE_GET_SUB_COMMENTS,
+            headless=config.HEADLESS,
             save_data_option=config.SAVE_DATA_OPTION,
             init_db=init_db_value,
             cookies=config.COOKIES,
             urls=urls,
+            specified_id=specified_id,
+            creator_id=creator_id,
         )
 
     command = typer.main.get_command(app)

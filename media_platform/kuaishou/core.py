@@ -56,9 +56,10 @@ class KuaishouCrawler(AbstractCrawler):
 
     def __init__(self):
         self.index_url = "https://www.kuaishou.com"
+        self.cookie_urls = [self.index_url]
         self.user_agent = utils.get_user_agent()
         self.cdp_manager = None
-        self.ip_proxy_pool = None  # 代理IP池，用于代理自动刷新
+        self.ip_proxy_pool = None  # Proxy IP pool, used for automatic proxy refresh
 
     async def start(self):
         playwright_proxy_format, httpx_proxy_format = None, None
@@ -72,9 +73,9 @@ class KuaishouCrawler(AbstractCrawler):
             )
 
         async with async_playwright() as playwright:
-            # 根据配置选择启动模式
+            # Select startup mode based on configuration
             if config.ENABLE_CDP_MODE:
-                utils.logger.info("[KuaishouCrawler] 使用CDP模式启动浏览器")
+                utils.logger.info("[KuaishouCrawler] Launching browser using CDP mode")
                 self.browser_context = await self.launch_browser_with_cdp(
                     playwright,
                     playwright_proxy_format,
@@ -82,7 +83,7 @@ class KuaishouCrawler(AbstractCrawler):
                     headless=config.CDP_HEADLESS,
                 )
             else:
-                utils.logger.info("[KuaishouCrawler] 使用标准模式启动浏览器")
+                utils.logger.info("[KuaishouCrawler] Launching browser using standard mode")
                 # Launch a browser context.
                 chromium = playwright.chromium
                 self.browser_context = await self.launch_browser(
@@ -107,7 +108,8 @@ class KuaishouCrawler(AbstractCrawler):
                 )
                 await login_obj.begin()
                 await self.ks_client.update_cookies(
-                    browser_context=self.browser_context
+                    browser_context=self.browser_context,
+                    urls=self.cookie_urls,
                 )
 
             crawler_type_var.set(config.CRAWLER_TYPE)
@@ -158,14 +160,14 @@ class KuaishouCrawler(AbstractCrawler):
                     utils.logger.error(
                         f"[KuaishouCrawler.search] search info by keyword:{keyword} not found data"
                     )
-                    continue
+                    break
 
                 vision_search_photo: Dict = videos_res.get("visionSearchPhoto")
                 if vision_search_photo.get("result") != 1:
                     utils.logger.error(
                         f"[KuaishouCrawler.search] search info by keyword:{keyword} not found data "
                     )
-                    continue
+                    break
                 search_session_id = vision_search_photo.get("searchSessionId", "")
                 for video_detail in vision_search_photo.get("feeds"):
                     video_id_list.append(video_detail.get("photo", {}).get("id"))
@@ -296,7 +298,8 @@ class KuaishouCrawler(AbstractCrawler):
                 time.sleep(20)
                 await self.context_page.goto(f"{self.index_url}?isHome=1")
                 await self.ks_client.update_cookies(
-                    browser_context=self.browser_context
+                    browser_context=self.browser_context,
+                    urls=self.cookie_urls,
                 )
 
     async def create_ks_client(self, httpx_proxy: Optional[str]) -> KuaiShouClient:
@@ -304,8 +307,9 @@ class KuaishouCrawler(AbstractCrawler):
         utils.logger.info(
             "[KuaishouCrawler.create_ks_client] Begin create kuaishou API client ..."
         )
-        cookie_str, cookie_dict = utils.convert_cookies(
-            await self.browser_context.cookies()
+        cookie_str, cookie_dict = await utils.convert_browser_context_cookies(
+            self.browser_context,
+            urls=self.cookie_urls,
         )
         ks_client_obj = KuaiShouClient(
             proxy=httpx_proxy,
@@ -318,7 +322,7 @@ class KuaishouCrawler(AbstractCrawler):
             },
             playwright_page=self.context_page,
             cookie_dict=cookie_dict,
-            proxy_ip_pool=self.ip_proxy_pool,  # 传递代理池用于自动刷新
+            proxy_ip_pool=self.ip_proxy_pool,  # Pass proxy pool for automatic refresh
         )
         return ks_client_obj
 
@@ -344,7 +348,7 @@ class KuaishouCrawler(AbstractCrawler):
                 proxy=playwright_proxy,  # type: ignore
                 viewport={"width": 1920, "height": 1080},
                 user_agent=user_agent,
-                channel="chrome",  # 使用系统的Chrome稳定版
+                channel="chrome",  # Use system's stable Chrome version
             )
             return browser_context
         else:
@@ -362,7 +366,7 @@ class KuaishouCrawler(AbstractCrawler):
         headless: bool = True,
     ) -> BrowserContext:
         """
-        使用CDP模式启动浏览器
+        Launch browser using CDP mode
         """
         try:
             self.cdp_manager = CDPBrowserManager()
@@ -373,17 +377,17 @@ class KuaishouCrawler(AbstractCrawler):
                 headless=headless,
             )
 
-            # 显示浏览器信息
+            # Display browser information
             browser_info = await self.cdp_manager.get_browser_info()
-            utils.logger.info(f"[KuaishouCrawler] CDP浏览器信息: {browser_info}")
+            utils.logger.info(f"[KuaishouCrawler] CDP browser info: {browser_info}")
 
             return browser_context
 
         except Exception as e:
             utils.logger.error(
-                f"[KuaishouCrawler] CDP模式启动失败，回退到标准模式: {e}"
+                f"[KuaishouCrawler] CDP mode launch failed, fallback to standard mode: {e}"
             )
-            # 回退到标准模式
+            # Fallback to standard mode
             chromium = playwright.chromium
             return await self.launch_browser(
                 chromium, playwright_proxy, user_agent, headless
@@ -438,7 +442,7 @@ class KuaishouCrawler(AbstractCrawler):
 
     async def close(self):
         """Close browser context"""
-        # 如果使用CDP模式，需要特殊处理
+        # If using CDP mode, need special handling
         if self.cdp_manager:
             await self.cdp_manager.cleanup()
             self.cdp_manager = None
